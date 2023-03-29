@@ -52,6 +52,7 @@ print(df_hourly.describe())
 print(df_hourly.shape)
 
 # Plot of the dependent variable versus time
+plt.figure(figsize=(12, 8))
 plt.plot(df_hourly.index, df_hourly['Radiation'])
 plt.title('Solar Radiation over Time')
 plt.xlabel('Time')
@@ -60,16 +61,15 @@ plt.show()
 
 # ACF/PACF of the dependent variable
 plt.figure(figsize=(12, 8))
-Tool.Auto_corr_plot(df_hourly['Radiation'], lags=48, method_name='Radiation')
+Tool.Auto_corr_plot(df_hourly['Radiation'], lags=24, method_name='Solar Radiation')
 plt.show()
 
 # Correlation Matrix
-print(df.corr(method='pearson'))
 
-# Correlation Matrix with seaborn heatmap
 plt.figure(figsize=(16, 8))
-sns.heatmap(df_hourly.corr(method='pearson'), annot=True, cmap='coolwarm')
-plt.title('Correlation Matrix')
+corr_matrix = df_hourly.corr(method='pearson')
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
+plt.title('Pearson Correlation Matrix')
 plt.show()
 
 plt.rcParams["font.size"] = 14
@@ -86,7 +86,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 #  Stationarity check
 
-# Perform Rolling mean and variance,ADF and KPSS tests on the raw data
+#Perform Rolling mean and variance,ADF and KPSS tests on the raw data
 Tool.Graph_rolling_mean_var(df_hourly, col='Radiation')
 Tool.adf_Cal_pass(df_hourly['Radiation'], "Radiation")
 Tool.kpss_test(df_hourly['Radiation'])
@@ -96,19 +96,19 @@ df_hourly['transformed_data_1'] = Tool.non_seasonal_differencing(df_hourly['Radi
 Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_1')
 Tool.adf_Cal_pass(df_hourly['transformed_data_1'][1:], 'transformed_data_1')
 Tool.kpss_test(df_hourly['transformed_data_1'][1:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_1'][1:], lags=48, method_name='Transformed 1-Radiation')
+Tool.Auto_corr_plot(df_hourly['transformed_data_1'][1:], lags=24, method_name='Transformed 1-Radiation')
 
 df_hourly['transformed_data_2'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_1'], 2)
 Tool.Graph_rolling_mean_var(df_hourly[2:], 'transformed_data_2')
 Tool.adf_Cal_pass(df_hourly['transformed_data_2'][2:],'transformed_data_2')
 Tool.kpss_test(df_hourly['transformed_data_2'][2:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_2'][2:], lags=48, method_name='Transformed 2-Radiation')
+Tool.Auto_corr_plot(df_hourly['transformed_data_2'][2:], lags=24, method_name='Transformed 2-Radiation')
 
 df_hourly['transformed_data_3'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_2'], 2)
 Tool.Graph_rolling_mean_var(df_hourly[3:], 'transformed_data_3')
 Tool.adf_Cal_pass(df_hourly['transformed_data_3'][3:],'transformed_data_3')
 Tool.kpss_test(df_hourly['transformed_data_3'][3:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_3'][3:], lags=48, method_name='Transformed 3-Radiation')
+Tool.Auto_corr_plot(df_hourly['transformed_data_3'][3:], lags=24, method_name='Transformed 3-Radiation')
 
 
 df_hourly['df_log'] = np.log(df_hourly['Radiation'])
@@ -116,4 +116,5 @@ df_hourly['transformed_data_log'] = Tool.non_seasonal_differencing(df_hourly['df
 Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_log')
 Tool.adf_Cal_pass(df_hourly['transformed_data_log'][1:], 'transformed_data_log')
 Tool.kpss_test(df_hourly['transformed_data_log'][1:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_log'][1:], lags=48, method_name='Transformed log-Radiation')
+Tool.Auto_corr_plot(df_hourly['transformed_data_log'][1:], lags=24, method_name='Transformed log-Radiation')
+

@@ -38,7 +38,7 @@ def Graph_rolling_mean_var(data, col=None):
 
         pass_rolling_mean_list.append(pass_rolling_mean)
         pass_rolling_var_list.append(pass_rolling_var)
-    fig, ax = plt.subplots(2, 1)
+    fig, ax = plt.subplots(2, 1,figsize=(12, 8))
     ax[0].plot(pass_rolling_mean_list)
     ax[0].set_title('Rolling Mean - {}'.format(col))
     ax[0].set_xlabel("Samples")
@@ -104,6 +104,7 @@ def Auto_corr_plot(y,lags,method_name=None):
     lag_f.extend(lags[:0:-1])
     lag_f = [value * (-1) for value in lag_f]
     lag_f.extend(lags)
+    plt.figure(figsize=(12, 8))
     markers, stemlines, baseline = plt.stem(lag_f, final)
     plt.setp(markers, color='red', marker='o')
     plt.axhspan((-1.96 / np.sqrt(len(y))), (1.96 / np.sqrt(len(y))), alpha=0.2, color='blue')
@@ -117,6 +118,10 @@ def Auto_corr_plot(y,lags,method_name=None):
 yt_pred = []
 error = []
 e_squared=[]
+
+
+
+
 def average_method(t,yt,n):
     for i in range(0, len(yt)):
         if i  == 0:
