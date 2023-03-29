@@ -107,7 +107,7 @@ def Auto_corr_plot(y,lags,method_name=None):
     markers, stemlines, baseline = plt.stem(lag_f, final)
     plt.setp(markers, color='red', marker='o')
     plt.axhspan((-1.96 / np.sqrt(len(y))), (1.96 / np.sqrt(len(y))), alpha=0.2, color='blue')
-    plt.xlabel('LagS')
+    plt.xlabel('Lags')
     plt.ylabel('Magnitude')
     plt.title(f'AutoCorrelation of {method_name}')
     plt.show()
