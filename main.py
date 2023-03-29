@@ -65,13 +65,13 @@ Tool.Auto_corr_plot(df_hourly['Radiation'], lags=24, method_name='Solar Radiatio
 plt.show()
 
 # Correlation Matrix
-
 plt.figure(figsize=(16, 8))
 corr_matrix = df_hourly.corr(method='pearson')
 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
 plt.title('Pearson Correlation Matrix')
 plt.show()
 
+# Histogram
 plt.rcParams["font.size"] = 14
 df_hourly.hist(figsize=(12,12))
 plt.title('Histogram')
