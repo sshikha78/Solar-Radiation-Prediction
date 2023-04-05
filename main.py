@@ -31,8 +31,16 @@ df['TimeSunSet'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunSet']).astype(np
 # Resample the DataFrame by hour and calculate the mean of each column
 df_hourly = df.resample('H', on='Datetime').mean()
 
+cols_with_missing = df_hourly.columns[df_hourly.isna().any()]
+
+# Fill missing values using linear interpolation
+for col in cols_with_missing:
+    df_hourly[col] = df_hourly[col].interpolate(method='linear', limit_direction='both')
+
+
+
 # Replace NaN values with the mean of each column
-df_hourly = df_hourly.fillna(df_hourly.mean())
+# df_hourly = df_hourly.fillna(df_hourly.mean())
 
 # Convert the "TimeSunRise" and "TimeSunSet" columns back to datetime data type
 df_hourly['TimeSunRise'] = pd.to_datetime(df_hourly['TimeSunRise'], format='%Y-%m-%d %H:%M:%S')
@@ -42,8 +50,9 @@ df_hourly['TimeSunSet'] = pd.to_datetime(df_hourly['TimeSunSet'], format='%Y-%m-
 date = pd.date_range(start = '2016-09-01', periods = len(df_hourly), freq='H')
 df_hourly.index = date
 
+
 # Check for NaN values again
-print("NaN values:", df_hourly.isna().sum())
+print("NaN values  interpolation:", df_hourly.isna().sum())
 
 # Summarizing the dataset
 print(df_hourly.describe())
@@ -82,7 +91,8 @@ plt.show()
 X = df_hourly.drop(['Radiation'], axis=1)
 y = df_hourly['Radiation']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+print(f'Training set size: {len(X_train)} rows and {len(X_train.columns)+1} columns')
+print(f'Testing set size: {len(X_test)} rows and {len(X_test.columns)+1} columns')
 
 #  Stationarity check
 
@@ -94,22 +104,28 @@ Tool.kpss_test(df_hourly['Radiation'])
 # Perform Rolling mean and variance,ADF and KPSS tests on the transformed data
 df_hourly['transformed_data_1'] = Tool.non_seasonal_differencing(df_hourly['Radiation'], 1)
 Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_1')
+print('ADF test on transformed_data_1:-')
 Tool.adf_Cal_pass(df_hourly['transformed_data_1'][1:], 'transformed_data_1')
+print('KPSS test on transformed_data_1:-')
 Tool.kpss_test(df_hourly['transformed_data_1'][1:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_1'][1:], lags=24, method_name='Transformed 1-Radiation')
+Tool.ACF_PACF_Plot(df_hourly['transformed_data_1'][1:],24,"1st differncing")
 
 df_hourly['transformed_data_2'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_1'], 2)
 Tool.Graph_rolling_mean_var(df_hourly[2:], 'transformed_data_2')
+print('ADF test on transformed_data_2:-')
 Tool.adf_Cal_pass(df_hourly['transformed_data_2'][2:],'transformed_data_2')
+print('KPSS test on transformed_data_2:-')
 Tool.kpss_test(df_hourly['transformed_data_2'][2:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_2'][2:], lags=24, method_name='Transformed 2-Radiation')
+Tool.ACF_PACF_Plot(df_hourly['transformed_data_2'][1:],24,"2nd differncing")
 
 df_hourly['transformed_data_3'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_2'], 2)
 Tool.Graph_rolling_mean_var(df_hourly[3:], 'transformed_data_3')
 Tool.adf_Cal_pass(df_hourly['transformed_data_3'][3:],'transformed_data_3')
 Tool.kpss_test(df_hourly['transformed_data_3'][3:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_3'][3:], lags=24, method_name='Transformed 3-Radiation')
-
+Tool.ACF_PACF_Plot(df_hourly['transformed_data_3'][1:],24,"3rd differncing")
 
 df_hourly['df_log'] = np.log(df_hourly['Radiation'])
 df_hourly['transformed_data_log'] = Tool.non_seasonal_differencing(df_hourly['df_log'],1)
@@ -117,4 +133,13 @@ Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_log')
 Tool.adf_Cal_pass(df_hourly['transformed_data_log'][1:], 'transformed_data_log')
 Tool.kpss_test(df_hourly['transformed_data_log'][1:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_log'][1:], lags=24, method_name='Transformed log-Radiation')
+Tool.ACF_PACF_Plot(df_hourly['transformed_data_log'][1:],24,"log differncing")
+
+#missing - drift (function- if the x=na then drift return use kro)
+# pacf - function - pcf direct code use after acf
+#
+
+
+
+
 

@@ -5,6 +5,7 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 import statsmodels.api as sm
 from scipy import signal
+from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
 
 
 def adf_Cal_pass(y,name):
@@ -113,6 +114,17 @@ def Auto_corr_plot(y,lags,method_name=None):
     plt.title(f'AutoCorrelation of {method_name}')
     plt.show()
 
+def ACF_PACF_Plot(y, lags, method_name=''):
+    acf = sm.tsa.stattools.acf(y, nlags=lags)
+    pacf = sm.tsa.stattools.pacf(y, nlags=lags)
+    fig = plt.figure()
+    plt.subplot(211)
+    plt.title(f'ACF/PACF of the {method_name} data')
+    plot_acf(y, ax=plt.gca(), lags=lags)
+    plt.subplot(212)
+    plot_pacf(y, ax=plt.gca(), lags=lags)
+    fig.tight_layout(pad=3)
+    plt.show()
 
 
 yt_pred = []
@@ -198,7 +210,7 @@ def drift_method(t,yt,n):
             h = i - n + 1
             yd = yt[n-1] + (h * (yt[n-1] - yt[0])) / (n-1)
             yt_pred_d.append(yd)
-    return yt_pred_d
+    return pd.Series(yt_pred_d)
 
 def ses_method(t,yt,n,alpha):
     l0=yt[0]
@@ -309,3 +321,4 @@ def dlsim_MA2(e,num,den):
     t, y_dlsim = signal.dlsim(system, e)
     print(f"y dlsim MA2_method - {y_dlsim[:5].flatten()}")
     return y_dlsim.flatten()
+
