@@ -212,6 +212,15 @@ def drift_method(t,yt,n):
             yt_pred_d.append(yd)
     return pd.Series(yt_pred_d)
 
+# drift method
+def drift(y, n):
+    y_pred = list(np.nan for i in range(0, len(y)))
+    for i in range(2, n):
+        y_pred[i] = y[i-1] + ((y[i-1]-y[0]))/(i-1)
+    for i in range(n, len(y)):
+        y_pred[i] = y[n-1] + (i+1-n)*(y[n-1]-y[0])/(n-1)
+    return y_pred
+
 def ses_method(t,yt,n,alpha):
     l0=yt[0]
     yt_pred_s=[np.nan]

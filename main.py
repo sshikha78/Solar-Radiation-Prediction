@@ -28,19 +28,60 @@ print(df.info())
 df['TimeSunRise'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunRise']).astype(np.int64)
 df['TimeSunSet'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunSet']).astype(np.int64)
 
+
 # Resample the DataFrame by hour and calculate the mean of each column
 df_hourly = df.resample('H', on='Datetime').mean()
 
-cols_with_missing = df_hourly.columns[df_hourly.isna().any()]
+# Plotting dependent variable vs time
+plt.figure(figsize=(16, 8))
+plt.plot(list(df_hourly.index.values), df_hourly['Radiation'])
+plt.xlabel('Time')
+plt.ylabel('Radiation')
+plt.title('Radiation over Time')
+plt.legend()
+plt.tight_layout()
+plt.show()
 
-# Fill missing values using linear interpolation
-for col in cols_with_missing:
-    df_hourly[col] = df_hourly[col].interpolate(method='linear', limit_direction='both')
+# Check NA value
+print(f'NA value: \n{df_hourly.isna().sum()}')
+
+# Reetting index for getting the integer index values of NA records
+df_hourly.reset_index(inplace=True)
+print(df_hourly)
 
 
+# Check for NA in any column
+print(df_hourly[df_hourly.isna().any(axis=1)])
 
-# Replace NaN values with the mean of each column
-# df_hourly = df_hourly.fillna(df_hourly.mean())
+# Retrieving columns containing NA valuess
+col_list = df_hourly.columns[df_hourly.isna().any()].tolist()
+# Retrieving index number of rows containing NA valuess
+index_list = df_hourly[df_hourly.isna().any(axis=1)].index.tolist()
+
+# Filling na with forecasted value of drift method
+for col in col_list:
+    for index in index_list:
+        y_pred = Tool.drift(df_hourly[col], index)
+        df_hourly[col][index] = y_pred[index]
+
+
+# Checking if NA remain
+print(f'NA value: \n{df_hourly.isna().sum()}')
+
+# Setting the Datetime as index again
+df_hourly.set_index('Datetime', inplace=True)
+
+print(df_hourly[170:190])
+
+# Plotting dependent variable vs time
+plt.figure(figsize=(16, 8))
+plt.plot(list(df_hourly.index.values), df_hourly['Radiation'])
+plt.xlabel('Time')
+plt.ylabel('Radiation')
+plt.title('Radiation over Time')
+plt.legend()
+plt.tight_layout()
+plt.show()
 
 # Convert the "TimeSunRise" and "TimeSunSet" columns back to datetime data type
 df_hourly['TimeSunRise'] = pd.to_datetime(df_hourly['TimeSunRise'], format='%Y-%m-%d %H:%M:%S')
@@ -60,13 +101,6 @@ print(df_hourly.describe())
 # Shape of  the dataset
 print(df_hourly.shape)
 
-# Plot of the dependent variable versus time
-plt.figure(figsize=(12, 8))
-plt.plot(df_hourly.index, df_hourly['Radiation'])
-plt.title('Solar Radiation over Time')
-plt.xlabel('Time')
-plt.ylabel('Solar Radiation (W/m²)')
-plt.show()
 
 # ACF/PACF of the dependent variable
 plt.figure(figsize=(12, 8))
@@ -100,6 +134,7 @@ print(f'Testing set size: {len(X_test)} rows and {len(X_test.columns)+1} columns
 Tool.Graph_rolling_mean_var(df_hourly, col='Radiation')
 Tool.adf_Cal_pass(df_hourly['Radiation'], "Radiation")
 Tool.kpss_test(df_hourly['Radiation'])
+Tool.ACF_PACF_Plot(df_hourly['Radiation'],50,"Wirhout differncing")
 
 # Perform Rolling mean and variance,ADF and KPSS tests on the transformed data
 df_hourly['transformed_data_1'] = Tool.non_seasonal_differencing(df_hourly['Radiation'], 1)
@@ -135,9 +170,7 @@ Tool.kpss_test(df_hourly['transformed_data_log'][1:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_log'][1:], lags=24, method_name='Transformed log-Radiation')
 Tool.ACF_PACF_Plot(df_hourly['transformed_data_log'][1:],24,"log differncing")
 
-#missing - drift (function- if the x=na then drift return use kro)
-# pacf - function - pcf direct code use after acf
-#
+
 
 
 
