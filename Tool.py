@@ -6,7 +6,7 @@ from statsmodels.tsa.stattools import kpss
 import statsmodels.api as sm
 from scipy import signal
 from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
-
+import seaborn as sns
 
 def adf_Cal_pass(y,name):
     result = adfuller(y)
@@ -331,3 +331,32 @@ def dlsim_MA2(e,num,den):
     print(f"y dlsim MA2_method - {y_dlsim[:5].flatten()}")
     return y_dlsim.flatten()
 
+
+
+def gpac_table(n, mean, var, ar_coef, ma_coef, j_max=7, k_max=7):
+    ar_params = np.r_[ar_coef]
+    ma_params = np.r_[ma_coef]
+    arma_process = sm.tsa.ArmaProcess(ar_coef, ma_coef)
+    mean_y = mean * (1 + np.sum(ar_coef)) / (1 + np.sum(ma_coef))
+    y = arma_process.generate_sample(n, scale=np.sqrt(var)) + mean_y
+    lags = 15
+    ry = arma_process.acf(lags=lags)
+    ry1 = ry[::-1]
+    ry2 = np.concatenate((np.reshape(ry1, lags), ry[1:]))
+    gpac_table = np.zeros((j_max, k_max - 1))
+    for j in range(0, j_max):
+        for k in range(1, k_max):
+            phi_num = np.zeros((k, k))
+            phi_den = np.zeros((k, k))
+            for x in range(0, k):
+                for z in range(0, k):
+                    phi_num[x, z] = ry2[j - z + x + 1 + lags - 1]
+                    phi_den[x, z] = ry2[j - z + x + lags - 1]
+            phi_num = np.roll(phi_num, -1, 1)
+            phi_j_k = round(np.linalg.det(phi_num) / np.linalg.det(phi_den), 3)
+            gpac_table[j, k - 1] = phi_j_k
+    sns.heatmap(gpac_table, annot=True, fmt=".3f", cmap="coolwarm")
+    plt.xlabel("k")
+    plt.ylabel("j")
+    plt.show()
+    return gpac_table
