@@ -162,17 +162,37 @@ Tool.kpss_test(df_hourly['transformed_data_3'][3:])
 Tool.Auto_corr_plot(df_hourly['transformed_data_3'][3:], lags=24, method_name='Transformed 3-Radiation')
 Tool.ACF_PACF_Plot(df_hourly['transformed_data_3'][1:],24,"3rd differncing")
 
-df_hourly['df_log'] = np.log(df_hourly['Radiation'])
-df_hourly['transformed_data_log'] = Tool.non_seasonal_differencing(df_hourly['df_log'],1)
-Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_log')
-Tool.adf_Cal_pass(df_hourly['transformed_data_log'][1:], 'transformed_data_log')
-Tool.kpss_test(df_hourly['transformed_data_log'][1:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_log'][1:], lags=24, method_name='Transformed log-Radiation')
-Tool.ACF_PACF_Plot(df_hourly['transformed_data_log'][1:],24,"log differncing")
+
+# STL Decomposition
+radiation = pd.Series(df_hourly['Radiation'].values,index = date,
+                 name = 'Radiation')
+
+STL = STL(radiation, period=24)
+res = STL.fit()
+plt.figure(figsize=(16,10))
+fig = res.plot()
+plt.grid()
+plt.show()
+
+T = res.trend
+S = res.seasonal
+R = res.resid
+plt.figure()
+
+plt.figure(figsize=(16,10))
+plt.plot(df_hourly.index,T.values,label = 'trend')
+plt.plot(df_hourly.index,S.values,label = 'Seasonal')
+plt.plot(df_hourly.index,R.values,label = 'residuals')
+
+plt.show()
 
 
+var_resi1 = np.var(R)
+var_resid_trend = np.var(T + R)
+Ft = np.max([0,1 - var_resi1 / var_resid_trend])
+print("The strength of trend for this data set is  ",Ft)
 
-
-
-
-
+var_resi = np.var(R)
+var_resid_seasonal = np.var(S + R)
+St = np.max([0,1 - var_resi / var_resid_seasonal])
+print("The strength of seasonality for this data set is  ",St)
