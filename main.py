@@ -136,32 +136,48 @@ Tool.adf_Cal_pass(df_hourly['Radiation'], "Radiation")
 Tool.kpss_test(df_hourly['Radiation'])
 Tool.ACF_PACF_Plot(df_hourly['Radiation'],50,"Wirhout differncing")
 
-# Perform Rolling mean and variance,ADF and KPSS tests on the transformed data
-df_hourly['transformed_data_1'] = Tool.non_seasonal_differencing(df_hourly['Radiation'], 1)
-Tool.Graph_rolling_mean_var(df_hourly[1:], 'transformed_data_1')
-print('ADF test on transformed_data_1:-')
-Tool.adf_Cal_pass(df_hourly['transformed_data_1'][1:], 'transformed_data_1')
-print('KPSS test on transformed_data_1:-')
-Tool.kpss_test(df_hourly['transformed_data_1'][1:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_1'][1:], lags=24, method_name='Transformed 1-Radiation')
-Tool.ACF_PACF_Plot(df_hourly['transformed_data_1'][1:],24,"1st differncing")
 
-df_hourly['transformed_data_2'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_1'], 2)
-Tool.Graph_rolling_mean_var(df_hourly[2:], 'transformed_data_2')
-print('ADF test on transformed_data_2:-')
-Tool.adf_Cal_pass(df_hourly['transformed_data_2'][2:],'transformed_data_2')
-print('KPSS test on transformed_data_2:-')
-Tool.kpss_test(df_hourly['transformed_data_2'][2:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_2'][2:], lags=24, method_name='Transformed 2-Radiation')
-Tool.ACF_PACF_Plot(df_hourly['transformed_data_2'][1:],24,"2nd differncing")
+# Seasonal Differencing
+s = 24
+df_hourly['seasonal_d_o_1'] = Tool.seasonal_differencing(df_hourly['Radiation'], seasons=s)
+#print(df[['pollution', 'seasonal_d_o_1']].head(60))
 
-df_hourly['transformed_data_3'] = Tool.non_seasonal_differencing(df_hourly['transformed_data_2'], 2)
-Tool.Graph_rolling_mean_var(df_hourly[3:], 'transformed_data_3')
-Tool.adf_Cal_pass(df_hourly['transformed_data_3'][3:],'transformed_data_3')
-Tool.kpss_test(df_hourly['transformed_data_3'][3:])
-Tool.Auto_corr_plot(df_hourly['transformed_data_3'][3:], lags=24, method_name='Transformed 3-Radiation')
-Tool.ACF_PACF_Plot(df_hourly['transformed_data_3'][1:],24,"3rd differncing")
+# Plotting dependent variable vs time
+plt.figure(figsize=(16, 8))
+plt.plot(list(df_hourly.index.values), df_hourly['seasonal_d_o_1'])
+plt.xlabel('Time')
+plt.ylabel('seasonal_d_o_1')
+plt.title('Pollution over Time')
+plt.legend()
+plt.tight_layout()
+plt.show()
 
+# Stationarity on seasonaly differenced data
+
+Tool.ACF_PACF_Plot(df_hourly['seasonal_d_o_1'][s:], lags=60)
+Tool.adf_Cal_pass(df_hourly['seasonal_d_o_1'][s:], "Seasonal Diff 1 Radiation")
+Tool.kpss_test(df_hourly['seasonal_d_o_1'][s:])
+Tool.Graph_rolling_mean_var(df_hourly[s:], 'seasonal_d_o_1')
+
+# Doing a non-seasonal differencing after the seasonal differrencing
+# Transforming data to make it stationary
+df_hourly['diff_order_1'] = Tool.non_seasonal_differencing(df_hourly['seasonal_d_o_1'], s)
+
+# Plotting dependent variable vs time
+plt.figure(figsize=(16, 8))
+plt.plot(list(df_hourly.index.values), df_hourly['diff_order_1'])
+plt.xlabel('Time')
+plt.ylabel('diff_order_1')
+plt.title('Pollution over Time')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Stationarity Tests on transformed data
+Tool.ACF_PACF_Plot(df_hourly['diff_order_1'][s+1:], lags=60)
+Tool.adf_Cal_pass(df_hourly['diff_order_1'][s+1:], "diff_order_1 Radiation")
+Tool.kpss_test(df_hourly['diff_order_1'][s+1:])
+Tool.Graph_rolling_mean_var(df_hourly[s+1:], 'diff_order_1')
 
 # STL Decomposition
 radiation = pd.Series(df_hourly['Radiation'].values,index = date,
@@ -180,19 +196,17 @@ R = res.resid
 plt.figure()
 
 plt.figure(figsize=(16,10))
-plt.plot(df_hourly.index,T.values,label = 'trend')
-plt.plot(df_hourly.index,S.values,label = 'Seasonal')
-plt.plot(df_hourly.index,R.values,label = 'residuals')
+plt.plot(df_hourly.index, T.values, label = 'trend')
+plt.plot(df_hourly.index, S.values, label = 'Seasonal')
+plt.plot(df_hourly.index, R.values, label = 'residuals')
 
 plt.show()
-
-
 var_resi1 = np.var(R)
 var_resid_trend = np.var(T + R)
-Ft = np.max([0,1 - var_resi1 / var_resid_trend])
-print("The strength of trend for this data set is  ",Ft)
+Ft = np.max([0, 1 - var_resi1 / var_resid_trend])
+print("The strength of trend for this data set is  ", Ft)
 
 var_resi = np.var(R)
 var_resid_seasonal = np.var(S + R)
-St = np.max([0,1 - var_resi / var_resid_seasonal])
-print("The strength of seasonality for this data set is  ",St)
+St = np.max([0, 1 - var_resi / var_resid_seasonal])
+print("The strength of seasonality for this data set is  ", St)
