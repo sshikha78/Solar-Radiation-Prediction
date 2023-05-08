@@ -653,3 +653,68 @@ def holt_winters_forecast(train,test):
     plt.grid()
     plt.show()
 
+def forecast_method(arr_train, arr_test, model, alpha=0.5):
+    pred_train = []
+    pred_test = []
+    arr_train = np.array(arr_train)
+    arr_test = np.array(arr_test)
+    if model == 'Average':
+        for i in range(1, len(arr_train) + 1):
+            avg = arr_train[:(i)].sum() / (len(arr_train[:(i)]))
+            pred_train.append(round(avg, 2))
+
+        for j in range(len(arr_test)):
+            pred_test.append(pred_train[-1])
+        pred_train.pop()
+    elif model == 'Naive':
+        for i in range(1, len(arr_train)):
+            pred_train.append(arr_train[(i-1)])
+        for j in range(len(arr_test)):
+            pred_test.append(arr_train[-1])
+    elif model == 'Drift':
+        val1 = 0
+        for i in range(2, len(arr_train)):
+            val = arr_train[i - 1] + ((1) * ((arr_train[i - 1] - arr_train[0]) / (i - 1)))
+            pred_train.append(val)
+        for j in range(len(arr_test)):
+            val1 = arr_train[-1] + (j + 1) * ((arr_train[-1] - arr_train[0]) / (len(arr_train) - 1))
+            pred_test.append(val1)
+    elif model == 'SES':
+        val = 0
+        val1 = 0
+        for i in range(0, len(arr_train)):
+            if i < 1:
+                pred_train.append(arr_train[0])
+            else:
+                val = (alpha * arr_train[i-1] ) + ((1 - alpha)*pred_train[i-1])
+                pred_train.append(val)
+        for j in range(len(arr_test)):
+            val1 = (alpha * arr_train[-1] ) + ((1 - alpha)*pred_train[-1])
+            pred_test.append(val1)
+    else:
+        print(f"Invalid model choice: {model}")
+        return None
+    pred_train = np.array(pred_train)
+    pred_test = np.array(pred_test)
+    plt.figure()
+    plt.plot(arr_train, label='training set', markerfacecolor='blue')
+    plt.plot([None for i in arr_train] + [x for x in arr_test], label='test set')
+    plt.plot([None for i in arr_train] + [x for x in pred_test], label='h-step forecast')
+    plt.legend()
+    plt.title('Temperature - {} Method & Forecast'.format(model.capitalize()))
+    plt.ylabel('Values')
+    plt.xlabel('Number of Observations')
+    plt.grid()
+    plt.show()
+    residual_err = arr_train[1:] - pred_train
+    forecast_err = arr_test - pred_test
+    Q = sm.stats.acorr_ljungbox(residual_err, lags=[20], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    print(f"Q-Value for training set {model} Method) : ", np.round(Q, 2))
+    model_fit = (np.var(residual_err) / np.var(forecast_err))
+    print(f'Mean of residual error for {model} Method is {np.round(np.mean(residual_err), 2)}')
+    print(f'MSE of residual error for {model} Method is {np.round(np.mean(residual_err ** 2), 2)}')
+    print(f'Variance of residual error for {model} Method is {np.round(np.var(residual_err), 2)}')
+    print(f'Variance of forecast error for {model} Method is {np.round(np.var(forecast_err), 2)}')
+    print('variance of the residual errors versus the variance of the forecast errors ({model} Method) : ',
+          np.round(model_fit, 2))
+
