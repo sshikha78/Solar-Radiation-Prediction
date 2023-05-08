@@ -172,16 +172,13 @@ Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1
 print('-----HOLT WINTER METHOD----------')
 Tool.holt_winters_forecast(df_train[s+1:]['diff_order_1'].values, df_test['diff_order_1'].values)
 
-##  Multiple Linear regression Model  #####
+
+#  Multiple Linear regression Model  #####
 
 X_train = sm.add_constant(X_train, prepend=True)
 X_test = sm.add_constant(X_test, prepend=True)
-model_full_final = sm.OLS(list(y_train1), X_train)
-results = model_full_final.fit()
-print(results.summary())
-
-print(X_train.info())
-print(X_test.info())
+model_full_final = sm.OLS(list(y_train1), X_train).fit()
+print(model_full_final.summary())
 
 y_pred = model_full_final.predict(X_train)
 X_test = X_test[X_train.columns.to_list()]
@@ -197,6 +194,10 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
+df_final = pd.DataFrame(list(zip(pd.concat([y_train1, y_test1], axis=0), pd.concat([y_pred, y_forecast], axis=0))), columns=['y', 'y_pred'])
+e, e_sq, mse_tr, var_pred, MSE_test, var_fcst, mean_res_train = Tool.error_method(df_final['y'].to_list(), df_final['y_pred'].to_list(), len(y_train1), 0)
+Q = sm.stats.acorr_ljungbox(e[2:len(y_train1)], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
+print(f"Q-Value for training set Method) : ", np.round(Q, 2))
 Tool.Auto_corr_plot(model_full_final.resid, lags=20, method_name='ACF Plot for errors Prediction Errors')
 
 print('T-Test')
@@ -205,3 +206,8 @@ print('\nF-Test')
 print(model_full_final.f_pvalue)
 
 
+#  GPAC  ####
+
+lags = 50
+ry = sm.tsa.stattools.acf(y_train1, nlags=lags)
+Tool.Gpac(ry, j_max=12, k_max=12)

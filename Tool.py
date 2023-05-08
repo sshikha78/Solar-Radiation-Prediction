@@ -153,7 +153,7 @@ def seasonal_differencing(series, seasons=1):
     return diff
 
 
-def average_method(t,yt,n):
+def average(t,yt,n):
     for i in range(0, len(yt)):
         if i  == 0:
             yt_pred.append(np.nan)
@@ -168,7 +168,8 @@ def error_method(yt, pred, n,s_o):
     error=[]
     e_squared=[]
     for i in range(0, len(yt)):
-        if i == 0:
+        #if i == 0:
+        if pred[i] == np.nan:
             error.append(np.nan)
             e_squared.append(np.nan)
         else:
@@ -180,6 +181,13 @@ def error_method(yt, pred, n,s_o):
     res_mean = np.nanmean(error[s_o:n])
     var_pred = np.nanvar(error[s_o:n])
     var_fcst = np.nanvar(error[n:])
+
+    print(f'Mean of residual error is {np.round(res_mean, 2)}')
+    print(f'MSE of residual error for  is {np.round(mse_tr, 2)}')
+    print(f'Variance of residual error   is {np.round(var_pred, 2)}')
+    print(f'Variance of forecast error  is {np.round(var_fcst, 2)}')
+    print(f'Ratio of variance of residual errors versus variance of forecast errors : {np.round(var_pred / var_fcst, 2)}')
+
     return error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean
 
 def plot_forecast(t, yt,method_n, yt_pred, n):
@@ -204,7 +212,7 @@ def cal_q_value(error, lags, n, s_o=0):
     q_value = len(fd) * (acf)
     return q_value
 
-def naive_method(yt, n,h):
+def naive(yt, n,h):
     yt_pred_n = []
     for i in range(len(yt)):
         if i == 0:
@@ -240,7 +248,7 @@ def drift(y, n):
         y_pred[i] = y[n-1] + (i+1-n)*(y[n-1]-y[0])/(n-1)
     return y_pred
 
-def ses_method(t,yt,n,alpha):
+def ses(t,yt,n,alpha):
     l0=yt[0]
     yt_pred_s=[np.nan]
     yt_pred_s.append(alpha * l0 + (1 - alpha) * l0)
@@ -653,88 +661,73 @@ def holt_winters_forecast(train,test):
     plt.grid()
     plt.show()
 
-def forecast_method(arr_train, arr_test, model, alpha=0.5):
-    pred_train = []
-    pred_test = []
+
+def forecast_method(arr_train, arr_test, model, alpha=0.5, n=10, lags=20):
     arr_train = np.array(arr_train)
     arr_test = np.array(arr_test)
+
     if model == 'Average':
-        for i in range(1, len(arr_train) + 1):
-            avg = arr_train[:(i)].sum() / (len(arr_train[:(i)]))
-            pred_train.append(round(avg, 2))
+        y_pred = []
+        for i in range(len(arr_train) + len(arr_test)):
+            if i == 0:
+                y_pred.append(np.nan)
+            elif i <= n:
+                y_pred.append(sum(arr_train[:i]) / i)
+            else:
+                y_pred.append(sum(arr_train[i - n:i]) / n)
 
-        for j in range(len(arr_test)):
-            pred_test.append(pred_train[-1])
-        pred_train.pop()
-
-        pred_train = np.array(pred_train)
-        pred_test = np.array(pred_test)
-
-        residual_err = arr_train[1:] - pred_train
-        forecast_err = arr_test - pred_test
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
 
     elif model == 'Naive':
-        for i in range(1, len(arr_train)):
-            pred_train.append(arr_train[(i-1)])
-        for j in range(len(arr_test)):
-            pred_test.append(arr_train[-1])
-        pred_train = np.array(pred_train)
-        pred_test = np.array(pred_test)
+        y_pred = naive(arr_train, n, len(arr_test))
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
 
-        residual_err = arr_train[1:] - pred_train
-        forecast_err = arr_test - pred_test
     elif model == 'Drift':
-        val1 = 0
-        for i in range(2, len(arr_train)):
-            val = arr_train[i - 1] + ((1) * ((arr_train[i - 1] - arr_train[0]) / (i - 1)))
-            pred_train.append(val)
-        for j in range(len(arr_test)):
-            val1 = arr_train[-1] + (j + 1) * ((arr_train[-1] - arr_train[0]) / (len(arr_train) - 1))
-            pred_test.append(val1)
-        pred_train = np.array(pred_train)
-        pred_test = np.array(pred_test)
-
-        residual_err = arr_train[2:] - pred_train
-        forecast_err = arr_test - pred_test
+        y_pred = drift(arr_train, n) + [np.nan] * len(arr_test)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 2)
 
     elif model == 'SES':
-        val = 0
-        val1 = 0
-        for i in range(0, len(arr_train)):
-            if i < 1:
-                pred_train.append(arr_train[0])
-            else:
-                val = (alpha * arr_train[i-1] ) + ((1 - alpha)*pred_train[i-1])
-                pred_train.append(val)
-        for j in range(len(arr_test)):
-            val1 = (alpha * arr_train[-1] ) + ((1 - alpha)*pred_train[-1])
-            pred_test.append(val1)
-        pred_train = np.array(pred_train)
-        pred_test = np.array(pred_test)
-        residual_err = arr_train - pred_train
-        forecast_err = arr_test - pred_test
+        y_pred = ses(arr_train, arr_train, n, alpha) + [np.nan] * len(arr_test)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
+
     else:
         print(f"Invalid model choice: {model}")
         return None
-
+    Q = sm.stats.acorr_ljungbox(e[2:len(arr_train)], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    print(f"Q-Value for training set ({model} Method) : ", np.round(Q, 2))
     plt.figure()
     plt.plot(arr_train, label='training set', markerfacecolor='blue')
     plt.plot([None for i in arr_train] + [x for x in arr_test], label='test set')
-    plt.plot([None for i in arr_train] + [x for x in pred_test], label='h-step forecast')
+    plt.plot([None for i in arr_train] + y_pred, label='h-step forecast')
     plt.legend()
-    plt.title('Temperature - {} Method & Forecast'.format(model.capitalize()))
+    plt.title(f'Temperature - {model.capitalize()} Method & Forecast')
     plt.ylabel('Values')
     plt.xlabel('Number of Observations')
     plt.grid()
     plt.show()
 
-    Q = sm.stats.acorr_ljungbox(residual_err, lags=[20], boxpierce=True, return_df=True)['bp_stat'].values[0]
-    print(f"Q-Value for training set {model} Method) : ", np.round(Q, 2))
-    model_fit = (np.var(residual_err) / np.var(forecast_err))
-    print(f'Mean of residual error for {model} Method is {np.round(np.nanmean(residual_err), 2)}')
-    print(f'MSE of residual error for {model} Method is {np.round(np.mean(residual_err ** 2), 2)}')
-    print(f'Variance of residual error for {model} Method is {np.round(np.var(residual_err), 2)}')
-    print(f'Variance of forecast error for {model} Method is {np.round(np.var(forecast_err), 2)}')
-    print('variance of the residual errors versus the variance of the forecast errors ({model} Method) : ',
-          np.round(model_fit, 2))
 
+    return y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean
+
+
+def Gpac(ry2, j_max=7, k_max=7):
+    lags = 15
+    np.random.seed(6313)
+    gpac_table = np.zeros((j_max, k_max - 1))
+    for j in range(0, j_max):
+        for k in range(1, k_max):
+            phi_num = np.zeros((k, k))
+            phi_den = np.zeros((k, k))
+            for x in range(0, k):
+                for z in range(0, k):
+                    phi_num[x, z] = ry2[j - z + x + 1 + lags - 1]
+                    phi_den[x, z] = ry2[j - z + x + lags - 1]
+            phi_num = np.roll(phi_num, -1, 1)
+            phi_j_k = round(np.linalg.det(phi_num) / np.linalg.det(phi_den), 3)
+            gpac_table[j, k - 1] = phi_j_k
+    plt.figure(figsize=(16,10))
+    sns.heatmap(gpac_table, annot=True, fmt=".3f", cmap="coolwarm")
+    plt.xlabel("k")
+    plt.ylabel("j")
+    plt.show()
+    return gpac_table
