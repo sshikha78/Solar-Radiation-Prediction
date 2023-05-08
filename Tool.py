@@ -8,6 +8,9 @@ from scipy import signal
 from statsmodels.tsa.seasonal import STL
 from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
 import seaborn as sns
+from statsmodels.tsa.arima.model import ARIMA
+from scipy.stats import chi2
+from sklearn.metrics import mean_squared_error
 
 
 def plot_graph(x_values, y_values, x_label='', y_label='', title='', legend_label='', figsize=(16, 8)):
@@ -103,7 +106,6 @@ def Auto_corr_cal(y,lags):
         for i in range(lag, len(y)):
             num += (y[i] - mean) * (y[i - lag] - mean)
         ry.append(num / den)
-
     return ry
 
 def Auto_corr_plot(y,lags,method_name=None):
@@ -189,6 +191,7 @@ def error_method(yt, pred, n,s_o):
     print(f'Ratio of variance of residual errors versus variance of forecast errors : {np.round(var_pred / var_fcst, 2)}')
 
     return error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean
+
 
 def plot_forecast(t, yt,method_n, yt_pred, n):
     y_tr = yt[:n]
@@ -581,14 +584,6 @@ def estimate_arma(mean,var,na,nb,ar,ma, n):
     print(model.summary())
 
 
-delta_num_den = 1e-20
-def num_den_size(num, den):
-    if len(num) > len(den):
-        den = den + [delta_num_den] * (len(num) - len(den))
-    elif len(num) < len(den):
-        num = num + [delta_num_den] * (len(den) - len(num))
-    return num, den
-
 
 def stl_decomposition(df, col, period=365, plot=True):
     stl = STL(df, period=period)
@@ -710,24 +705,133 @@ def forecast_method(arr_train, arr_test, model, alpha=0.5, n=10, lags=20):
     return y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean
 
 
-def Gpac(ry2, j_max=7, k_max=7):
-    lags = 15
+def Gpac(ry, j_max=7, k_max=7):
     np.random.seed(6313)
-    gpac_table = np.zeros((j_max, k_max - 1))
+    gpac_table = np.zeros((j_max, k_max-1))
     for j in range(0, j_max):
         for k in range(1, k_max):
             phi_num = np.zeros((k, k))
             phi_den = np.zeros((k, k))
             for x in range(0, k):
                 for z in range(0, k):
-                    phi_num[x, z] = ry2[j - z + x + 1 + lags - 1]
-                    phi_den[x, z] = ry2[j - z + x + lags - 1]
+                    phi_num[x][z] = ry[abs(j + 1 - z + x)]
+                    phi_den[x][z] = ry[abs(j - z + x)]
             phi_num = np.roll(phi_num, -1, 1)
-            phi_j_k = round(np.linalg.det(phi_num) / np.linalg.det(phi_den), 3)
-            gpac_table[j, k - 1] = phi_j_k
-    plt.figure(figsize=(16,10))
-    sns.heatmap(gpac_table, annot=True, fmt=".3f", cmap="coolwarm")
-    plt.xlabel("k")
-    plt.ylabel("j")
+            det_num = np.linalg.det(phi_num)
+            det_den = np.linalg.det(phi_den)
+            if det_den != 0 and not np.isnan(det_den):
+                phi_j_k = det_num / det_den
+            else:
+                phi_j_k = np.nan
+            gpac_table[j][k - 1] = phi_j_k
+    plt.figure(figsize=(36, 28))
+    x_axis_labels = list(range(1, k_max))
+    sns.heatmap(gpac_table, annot=True, xticklabels=x_axis_labels, fmt=f'.{3}f', vmin=-0.1, vmax=0.1)#, cmap='BrBG'
+    plt.title(f'GPAC Table', fontsize=18)
+    plt.savefig("gpac.png")
     plt.show()
     return gpac_table
+
+def check_residuals(Q, lags, na, nb):
+    DOF = lags - na - nb
+    alfa = 0.01
+    chi_critical = chi2.ppf(1 - alfa, DOF)
+
+    if Q < chi_critical:
+        print("As Q-value is less than chi-2 critical, Residual is white")
+    else:
+        print("As Q-value is greater than chi-2 critical, Residual is NOT white")
+
+
+def print_coefficients_and_intervals(model, na, nb):
+    for i in range(na):
+        print(f'The AR coefficient a{i} is: {-1 * model.params[i]}')
+    for i in range(nb):
+        print(f'The MA coefficient a{i} is: {model.params[i + na]}')
+
+    for i in range(1, na + 1):
+        print(f"The confidence interval for a{i} is: {-model.conf_int()[i][0]} and {-model.conf_int()[i][1]}")
+
+    for i in range(1, nb + 1):
+        print(f"The confidence interval for b{i} is: {model.conf_int()[i + na][0]} and {model.conf_int()[i + na][1]}")
+
+def plot_train_and_fitted_data(y_train, model_hat, na, d, nb):
+    plt.figure()
+    plt.plot(y_train, 'r', label='Train data')
+    plt.plot(model_hat, 'b', label='Fitted data')
+    plt.xlabel('Samples')
+    plt.ylabel('Magnitude')
+    plt.legend()
+    plt.title(f'Stats ARIMA ({na},{d},{nb}) model and predictions')
+    plt.grid()
+    plt.show()
+
+
+def plot_test_and_forecast(y_test, test_forecast, na, d, nb):
+    plt.figure()
+    plt.plot(y_test, 'r', label='Test data')
+    plt.plot(test_forecast, 'b', label='Forecasted data')
+    plt.xlabel('Samples')
+    plt.ylabel('Magnitude')
+    plt.legend()
+    plt.title(f'Stats ARIMA ({na},{d},{nb}) model and Forecast')
+    plt.grid()
+    plt.show()
+
+
+
+
+def ARIMA_method(na, nb, d, lags, y_train, y_test):
+    model = ARIMA(y_train, order=(na, 0, 0), seasonal_order=(0,0,nb,24)).fit()
+    print(model.summary())
+    model_hat = model.predict()
+    test_forecast = model.forecast(len(y_test))
+    error_method(pd.concat([y_train, y_test]), pd.concat([model_hat, test_forecast]), len(y_train), 0)
+    ry = sm.tsa.stattools.acf(model.resid, nlags=lags)
+    Auto_corr_plot(ry,50,"Arima")
+    Q = sm.stats.acorr_ljungbox(model.resid, lags=[20], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    print("Q-Value for ARIMA residuals: ", Q)
+    check_residuals(Q, lags, na, nb)
+    print_coefficients_and_intervals(model, na, nb)
+    plot_train_and_fitted_data(y_train, model_hat, na, d, nb)
+    plot_test_and_forecast(y_test, test_forecast, na, d, nb)
+
+
+def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
+    acfs = np.concatenate((acfs[::-1], acfs[1:]))
+    c = acfs.shape[0] // 2
+    gpac = np.zeros((J + 1, K))
+
+    for j in range(0, J + 1):
+        for k in range(1, K + 1):
+            den = np.zeros((k, k))
+            for row_index in range(k):
+                den[row_index] = acfs[c - j - row_index: c - j + k - row_index]
+            vec = acfs[c + j + 1: c + j + k + 1]
+            num = den.copy().T
+            num[-1] = vec
+            num = num.T
+            gpac[j, k - 1] = np.divide(np.linalg.det(num), np.linalg.det(den))
+    if plot:
+
+        if abs(np.nanmin(gpac)) <= abs(np.nanmax(gpac)):
+            vmax = abs(np.nanmax(gpac))
+            vmin = -vmax
+        else:
+            vmax = abs(np.nanmin(gpac))
+            vmin = -vmax
+        plt.figure(figsize=(60,60))
+        sns.heatmap(gpac,
+                    annot=True,
+                    vmin=vmin, vmax=vmax,
+                    cmap='vlag',
+                    xticklabels=np.arange(1, K + 1),
+                    linewidths=0.5)
+        if title:
+            plt.title(f'GPAC Table - {title}')
+        else:
+            plt.title(f'GPAC Table')
+        if savepath:
+            plt.savefig(savepath)
+        plt.show()
+    return gpac
