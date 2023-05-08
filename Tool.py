@@ -5,13 +5,25 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import kpss
 import statsmodels.api as sm
 from scipy import signal
+from statsmodels.tsa.seasonal import STL
 from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
 import seaborn as sns
 
-np.random.seed(6313)
 
-def adf_Cal_pass(x):
-    result = adfuller(x)
+def plot_graph(x_values, y_values, x_label='', y_label='', title='', legend_label='', figsize=(16, 8)):
+    plt.figure(figsize=figsize)
+    plt.plot(x_values, y_values, label=legend_label)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+def adf_Cal_pass(y,name):
+    result = adfuller(y)
+    print(f"ADF TEST - {name}: ")
     print("ADF Statistic: %f" % result[0])
     print('p-value: %f' % result[1])
     print('Critical Values:')
@@ -26,43 +38,6 @@ def kpss_test(timeseries):
         kpss_output['Critical Value (%s)'% key] = value
     print(kpss_output)
 
-def Cal_Rolling_MeanVar(dataset, column_name):
-    for i in range(1, len(dataset)):
-        return np.mean(dataset[column_name].head(i)), np.var(dataset[column_name].head(i))
-
-def CalRollingMeanVarGraph(dataset, column_name):
-    df_plot = pd.DataFrame(columns=['Samples', 'Mean', 'Variance'])
-    for i in range(1, len(dataset)):
-        df_plot.loc[i] = [i, np.mean(dataset[column_name].head(i)), np.var(dataset[column_name].head(i))]
-    plt.subplot(2, 1, 1)
-    plt.plot(df_plot['Samples'], df_plot['Mean'], label='Rolling Mean')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.title('Rolling Mean - {}'.format(column_name))
-    plt.subplot(2, 1, 2)
-    plt.plot(df_plot['Samples'], df_plot['Variance'], label='Rolling Variance')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.title('Rolling Variance - {}'.format(column_name))
-    plt.tight_layout()
-    plt.show()
-# The following function calculates the Rolling Mean and Rolling Variance and subsequently plots the graph
-def Graph_rolling_meanvar(dataset, column_name):
-    df_plot = pd.DataFrame(columns=['Samples', 'Mean', 'Variance'])
-    for i in range(1, len(dataset)):
-        df_plot.loc[i] = [i, np.mean(dataset[column_name].head(i)), np.var(dataset[column_name].head(i))]
-    plt.subplot(2, 1, 1)
-    plt.plot(df_plot['Samples'], df_plot['Mean'], label='Rolling Mean')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.title('Rolling Mean - {}'.format(column_name))
-    plt.subplot(2, 1, 2)
-    plt.plot(df_plot['Samples'], df_plot['Variance'], label='Rolling Variance')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.title('Rolling Variance - {}'.format(column_name))
-    plt.tight_layout()
-    plt.show()
 
 def Graph_rolling_mean_var(data, col=None):
     pass_rolling_mean_list = []
@@ -77,7 +52,7 @@ def Graph_rolling_mean_var(data, col=None):
 
         pass_rolling_mean_list.append(pass_rolling_mean)
         pass_rolling_var_list.append(pass_rolling_var)
-    fig, ax = plt.subplots(2, 1)
+    fig, ax = plt.subplots(2, 1,figsize=(12, 8))
     ax[0].plot(pass_rolling_mean_list)
     ax[0].set_title('Rolling Mean - {}'.format(col))
     ax[0].set_xlabel("Samples")
@@ -106,22 +81,13 @@ def pass_cal_rolling_mean_var(data, col):
 
     return pass_rolling_mean_list, pass_rolling_var_list
 
-
-def differencing(series, order=1):
-    diff = []
-    for i in range(order):
-        diff.append(np.nan)
-    for i in range(order, len(series)):
-        diff.append(series[i] - series[i - 1])
-    return diff
-
-def seasonal_differencing(series, seasons):
-    diff = []
-    for i in range(seasons):
-        diff.append(np.nan)
-    for i in range(seasons, len(series)):
-        diff.append(series[i] - series[i - seasons])
-    return diff
+def non_seasonal_differencing(column, n):
+    difference = []
+    for i in range(0, n):
+        difference.append(np.nan)
+    for i in range(n, len(column)):
+        difference.append(column[i] - column[i-1])
+    return difference
 
 #Autocorrelation Calculator
 def Auto_corr_cal(y,lags):
@@ -156,16 +122,37 @@ def Auto_corr_plot(y,lags,method_name=None):
     markers, stemlines, baseline = plt.stem(lag_f, final)
     plt.setp(markers, color='red', marker='o')
     plt.axhspan((-1.96 / np.sqrt(len(y))), (1.96 / np.sqrt(len(y))), alpha=0.2, color='blue')
-    plt.xlabel('LagS')
+    plt.xlabel('Lags')
     plt.ylabel('Magnitude')
     plt.title(f'AutoCorrelation of {method_name}')
     plt.show()
 
+def ACF_PACF_Plot(y, lags, method_name=''):
+    acf = sm.tsa.stattools.acf(y, nlags=lags)
+    pacf = sm.tsa.stattools.pacf(y, nlags=lags)
+    fig = plt.figure()
+    plt.subplot(211)
+    plt.title(f'ACF/PACF of the {method_name} data')
+    plot_acf(y, ax=plt.gca(), lags=lags)
+    plt.subplot(212)
+    plot_pacf(y, ax=plt.gca(), lags=lags)
+    fig.tight_layout(pad=3)
+    plt.show()
 
 
 yt_pred = []
 error = []
 e_squared=[]
+
+def seasonal_differencing(series, seasons=1):
+    diff = []
+    for i in range(seasons):
+        diff.append(np.nan)
+    for i in range(seasons, len(series)):
+        diff.append(series[i] - series[i - seasons])
+    return diff
+
+
 def average_method(t,yt,n):
     for i in range(0, len(yt)):
         if i  == 0:
@@ -242,7 +229,16 @@ def drift_method(t,yt,n):
             h = i - n + 1
             yd = yt[n-1] + (h * (yt[n-1] - yt[0])) / (n-1)
             yt_pred_d.append(yd)
-    return yt_pred_d
+    return pd.Series(yt_pred_d)
+
+# drift method
+def drift(y, n):
+    y_pred = list(np.nan for i in range(0, len(y)))
+    for i in range(2, n):
+        y_pred[i] = y[i-1] + ((y[i-1]-y[0]))/(i-1)
+    for i in range(n, len(y)):
+        y_pred[i] = y[n-1] + (i+1-n)*(y[n-1]-y[0])/(n-1)
+    return y_pred
 
 def ses_method(t,yt,n,alpha):
     l0=yt[0]
@@ -318,7 +314,11 @@ def AR2_process(e,N):
     np.set_printoptions(precision=2)
     return y
 
-
+def dlsim_AR2(e,num,den):
+    system = (num, den, 1)
+    t, y_dlsim = signal.dlsim(system, e)
+    print(f"y dlsim_AR2- {y_dlsim[:5].flatten()}")
+    return y_dlsim.flatten()
 
 def AR2_lse(e,c1,c2,n):
     np.random.seed(6313)
@@ -343,52 +343,25 @@ def MA2_Process(n, c1, c2):
             y[t] = e[t] + c1 * e[t - 1] + c2 * e[t - 2]
     return y, e
 
-def dlsim_method(mean,var,n,num,den):
-    np.random.seed(6313)
+
+def dlsim_MA2(e,num,den):
     system = (num, den, 1)
-    e = np.random.normal(mean, var, n)
     t, y_dlsim = signal.dlsim(system, e)
-    print(f" Generated data- {y_dlsim[:5].flatten()}")
-    return y_dlsim.reshape(-1), e
-def Cal_autocorr(y, lag):
-    mean = np.mean(y)
-    numerator = 0
-    denominator = 0
-    for t in range(0, len(y)):
-        denominator += (y[t] - mean) ** 2
-    for t in range(lag, len(y)):
-        numerator += (y[t] - mean)*(y[t-lag] - mean)
-    return numerator/denominator
-def gpac(ry, show_heatmap='Yes', j_max=7, k_max=7, round_off=3, seed=6313):
-    np.random.seed(seed)
-    gpac_table = np.zeros((j_max, k_max-1))
-    for j in range(0, j_max):
-        for k in range(1, k_max):
-            phi_num = np.zeros((k, k))
-            phi_den = np.zeros((k, k))
-            for x in range(0, k):
-                for z in range(0, k):
-                    phi_num[x][z] = ry[abs(j + 1 - z + x)]
-                    phi_den[x][z] = ry[abs(j - z + x)]
-            phi_num = np.roll(phi_num, -1, 1)
-            det_num = np.linalg.det(phi_num)
-            det_den = np.linalg.det(phi_den)
-            if det_den != 0 and not np.isnan(det_den):
-                phi_j_k = det_num / det_den
-            else:
-                phi_j_k = np.nan
-            gpac_table[j][k - 1] = phi_j_k #np.linalg.det(phi_num) / np.linalg.det(phi_den)
-    if show_heatmap=='Yes':
-        plt.figure(figsize=(16, 8))
-        x_axis_labels = list(range(1, k_max))
-        sns.heatmap(gpac_table, annot=True, xticklabels=x_axis_labels, fmt=f'.{round_off}f', vmin=-0.1, vmax=0.1)#, cmap='BrBG'
-        plt.title(f'GPAC Table', fontsize=18)
-        plt.show()
-    #print(gpac_table)
-    return gpac_table
-def gpac_table(ry,na,nb,j_max=7, k_max=7,lag=15):
+    print(f"y dlsim MA2_method - {y_dlsim[:5].flatten()}")
+    return y_dlsim.flatten()
+
+
+
+def gpac_table(n, mean, var, ar_coef, ma_coef, j_max=7, k_max=7):
+    ar_params = np.r_[ar_coef]
+    ma_params = np.r_[ma_coef]
+    arma_process = sm.tsa.ArmaProcess(ar_coef, ma_coef)
+    mean_y = mean * (1 + np.sum(ar_coef)) / (1 + np.sum(ma_coef))
+    y = arma_process.generate_sample(n, scale=np.sqrt(var)) + mean_y
+    lags = 15
+    ry = arma_process.acf(lags=lags)
     ry1 = ry[::-1]
-    ry2 = np.concatenate((ry1[-lag:], ry[:lag+1]))
+    ry2 = np.concatenate((np.reshape(ry1, lags), ry[1:]))
     gpac_table = np.zeros((j_max, k_max - 1))
     for j in range(0, j_max):
         for k in range(1, k_max):
@@ -396,60 +369,32 @@ def gpac_table(ry,na,nb,j_max=7, k_max=7,lag=15):
             phi_den = np.zeros((k, k))
             for x in range(0, k):
                 for z in range(0, k):
-                    phi_num[x, z] = ry2[j - z + x + 1 + lag - 1]
-                    phi_den[x, z] = ry2[j - z + x + lag - 1]
-            phi_num = np.concatenate((phi_num[:, 1:], phi_num[:, 0:1]), axis=1)
-            det_num = np.linalg.det(phi_num)
-            det_den = np.linalg.det(phi_den)
-            if det_den != 0 and not np.isnan(det_den):
-                phi_j_k = det_num / det_den
-            else:
-                phi_j_k = np.nan
-            gpac_table[j, k - 1] = "{:.2f}".format(phi_j_k)
-    x_labels = list(range(1, k_max))
-    sns.heatmap(gpac_table, annot=True,xticklabels=x_labels ,fmt=".2f", cmap="coolwarm",vmin=-0.1,vmax=0.1)
-    plt.title(f"GPAC Table for ARMA{na,nb} Process")
+                    phi_num[x, z] = ry2[j - z + x + 1 + lags - 1]
+                    phi_den[x, z] = ry2[j - z + x + lags - 1]
+            phi_num = np.roll(phi_num, -1, 1)
+            phi_j_k = round(np.linalg.det(phi_num) / np.linalg.det(phi_den), 3)
+            gpac_table[j, k - 1] = phi_j_k
+    sns.heatmap(gpac_table, annot=True, fmt=".3f", cmap="coolwarm")
     plt.xlabel("k")
     plt.ylabel("j")
     plt.show()
-    print(gpac_table)
-    return gpac_table
-def gpac(ry, show_heatmap='Yes', j_max=7, k_max=7, round_off=3, seed=6313):
-    np.random.seed(seed)
-    gpac_table = np.zeros((j_max, k_max-1))
-    for j in range(0, j_max):
-        for k in range(1, k_max):
-            phi_num = np.zeros((k, k))
-            phi_den = np.zeros((k, k))
-            for x in range(0, k):
-                for z in range(0, k):
-                    phi_num[x][z] = ry[abs(j + 1 - z + x)]
-                    phi_den[x][z] = ry[abs(j - z + x)]
-            phi_num = np.roll(phi_num, -1, 1)
-            gpac_table[j][k - 1] = np.linalg.det(phi_num) / np.linalg.det(phi_den)
-    if show_heatmap=='Yes':
-        plt.figure(figsize=(16, 8))
-        x_axis_labels = list(range(1, k_max))
-        sns.heatmap(gpac_table, annot=True, xticklabels=x_axis_labels, fmt=f'.{round_off}f', vmin=-0.1, vmax=0.1)#, cmap='BrBG'
-        plt.title(f'GPAC Table', fontsize=18)
-        plt.show()
-    #print(gpac_table)
     return gpac_table
 
+
+
 from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
-def ACF_PACF_Plot(y,lags):
+def ACF_PACF_Plot(y,lags,method_name):
     acf = sm.tsa.stattools.acf(y, nlags=lags)
     pacf = sm.tsa.stattools.pacf(y, nlags=lags)
     fig = plt.figure()
     plt.subplot(211)
-    plt.title('ACF/PACF of the raw data')
+    plt.title(f'ACF/PACF of the {method_name}')
     plot_acf(y, ax=plt.gca(), lags=lags)
     plt.subplot(212)
     plot_pacf(y, ax=plt.gca(), lags=lags,method='ywm')
     fig.tight_layout(pad=3)
     plt.show()
-# when pacf me cutoff - AR
-# ACF CUTOFF - MA
+
 
 def analyze_arma_process( lags, j_max=7, k_max=7):
     np.random.seed(6313)
@@ -635,3 +580,76 @@ def num_den_size(num, den):
     elif len(num) < len(den):
         num = num + [delta_num_den] * (len(den) - len(num))
     return num, den
+
+
+def stl_decomposition(df, col, period=365, plot=True):
+    stl = STL(df, period=period)
+    res = stl.fit()
+    T, S, R = res.trend, res.seasonal, res.resid
+    if plot:
+        plt.figure(figsize=(12, 8))
+        fig = res.plot()
+        plt.xlabel('Year')
+        plt.grid()
+        plt.show()
+
+        plt.figure(figsize=(12, 8))
+        plt.plot(df.index, T.values, label='trend')
+        plt.plot(df.index, S.values, label='Seasonal')
+        plt.plot(df.index, R.values, label='residuals')
+        plt.xlabel("Year")
+        plt.ylabel(col)
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+        adj_seasonal = (df.values - res.seasonal)
+        plt.figure(figsize=(12, 8))
+        plt.plot(df.values, label='Original Data')
+        plt.plot(adj_seasonal.values, label='Adjusted Seasonally')
+        plt.legend()
+        plt.title('Original Data vs Seasonally Adjusted Data')
+        plt.xlabel("Year")
+        plt.ylabel(col)
+        plt.grid()
+        plt.show()
+
+        detrended = (df.values - res.trend)
+        plt.figure(figsize=(12, 8))
+        plt.plot(df, label='Original Data')
+        plt.plot(detrended, label='Detrended Data')
+        plt.title(f'Detrended Data vs Original Data of {col}')
+        plt.xlabel('Frequency')
+        plt.ylabel('Value')
+        plt.legend()
+        plt.tight_layout()
+        plt.grid()
+        plt.show()
+
+    var_resi1 = np.var(R)
+    var_resid_trend = np.var(T + R)
+    Ft = np.max([0, 1 - var_resi1 / var_resid_trend])
+    print(f"The strength of trend for {col} is {Ft:.2f}")
+
+    var_resi = np.var(R)
+    var_resid_seasonal = np.var(S + R)
+    St = np.max([0, 1 - var_resi / var_resid_seasonal])
+    print(f"The strength of seasonality for {col} is {St:.2f}")
+
+
+import statsmodels.tsa.holtwinters as ets
+def holt_winters_forecast(train,test):
+    holtt1 = ets.ExponentialSmoothing(train,).fit()
+    pred_train_holts = holtt1.predict(start=0, end=(len(train) - 1))
+    pred_test_holts = holtt1.forecast(steps=len(test))
+    plt.figure()
+    plt.plot(train, label='training set', markerfacecolor='blue')
+    plt.plot([None for i in train] + [x for x in test], label='test set')
+    plt.plot([None for i in train] + [x for x in pred_test_holts], label='h-step forecast')
+    plt.legend()
+    plt.title('Temperature - Holt-Winter Seasonal Method & Forecast')
+    plt.ylabel('Values')
+    plt.xlabel('Number of Observations')
+    plt.grid()
+    plt.show()
+
