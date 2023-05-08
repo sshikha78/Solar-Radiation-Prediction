@@ -161,9 +161,15 @@ df_train, df_test = train_test_split(df_hourly, test_size=0.2, shuffle=False)
 
 # # Base Model	    ####
 
+print('-----AVERAGE METHOD----------')
 Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Average')
-
-
+print('-----NAIVE METHOD----------')
+Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Naive')
+print('-----DRIFT METHOD----------')
+Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Drift')
+print('-----SES METHOD----------')
+Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'SES')
+print('-----HOLT WINTER METHOD----------')
 Tool.holt_winters_forecast(df_train[s+1:]['diff_order_1'].values, df_test['diff_order_1'].values)
 
 ##  Multiple Linear regression Model  #####
