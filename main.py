@@ -177,9 +177,23 @@ model = sm.OLS(list(y_train1), X_train_2)
 results = model.fit()
 print(results.summary())
 
-X_train_2.drop(['WindDirection(Degrees)','Pressure'], axis=1, inplace=True)
+X_train_2.drop(['WindDirection(Degrees)'], axis=1, inplace=True)
 model_Final = sm.OLS(list(y_train1), X_train_2).fit()
 print(model_Final.summary())
+
+X_train_2.drop(['Pressure'], axis=1, inplace=True)
+model_Final = sm.OLS(list(y_train1), X_train_2).fit()
+print(model_Final.summary())
+
+X_train_2.drop(['Temperature'], axis=1, inplace=True)
+model_Final = sm.OLS(list(y_train1), X_train_2).fit()
+print(model_Final.summary())
+
+X_train_2.drop(['Humidity'], axis=1, inplace=True)
+model_Final = sm.OLS(list(y_train1), X_train_2).fit()
+print(model_Final.summary())
+
+
 
 #==============================================
 #   DATA SPLITTING 	    ####
@@ -193,15 +207,15 @@ df_train, df_test = train_test_split(df_hourly, test_size=0.2, shuffle=False)
 #===============================================
 
 print('-----AVERAGE METHOD----------')
-Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Average')
+Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'Average')
 print('-----NAIVE METHOD----------')
-Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Naive')
+Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'Naive')
 print('-----DRIFT METHOD----------')
-Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Drift')
+Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'Drift')
 print('-----SES METHOD----------')
-Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'SES')
+Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'SES')
 print('-----HOLT WINTER METHOD----------')
-Tool.holt_winters_forecast(df_train[s+1:]['diff_order_1'].values, df_test['diff_order_1'].values)
+Tool.holt_winters_forecast(df_hourly[s+1:len(df_train)]['diff_order_1'], df_hourly[len(df_train):]['diff_order_1'])
 
 
 #==============================================
@@ -249,19 +263,27 @@ Tool.calc_GPAC(ry, J=50, K=50, savepath=f'gpac.png')
 
 
 #==============================================
-# ARMA, ARIMA, SARIMA ####
+# SARIMA    ####
 #===============================================
 
-
-Tool.ARIMA_method(0,0, 1, 24, y_train1, y_test1)
-
+Tool.ARIMA_method(0, 0, 1, 24, y_train1, y_test1)
+Tool.ARIMA_method(1, 0, 0, 24, y_train1, y_test1)
 
 #==============================================
 # Levenberg Marquardt algorithm  ####
 #===============================================
 
-na = 24
-nb=1
-
+na = 0
+nb = 1
 Tool.lm(y_train1,na,nb)
 
+#==============================================
+#  Diagnostic Analysis ####
+#===============================================
+
+
+
+
+#==============================================
+#  LSTM model ####
+#===============================================

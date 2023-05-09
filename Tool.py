@@ -155,7 +155,7 @@ def seasonal_differencing(series, seasons=1):
     return diff
 
 
-def average(t,yt,n):
+def average(yt,n):
     for i in range(0, len(yt)):
         if i  == 0:
             yt_pred.append(np.nan)
@@ -178,8 +178,8 @@ def error_method(yt, pred, n,s_o):
             error.append(yt[i] - pred[i])
             e_squared.append(error[i] ** 2)
 
-    mse_tr = sum(e_squared[s_o:n]) / len(e_squared[s_o:n])
-    mse_ts = sum(e_squared[n:]) / len(e_squared[n:])
+    mse_tr = np.nanmean(e_squared[s_o:n])
+    mse_ts = np.nanmean(e_squared[n:])
     res_mean = np.nanmean(error[s_o:n])
     var_pred = np.nanvar(error[s_o:n])
     var_fcst = np.nanvar(error[n:])
@@ -199,7 +199,6 @@ def plot_forecast(t, yt,method_n, yt_pred, n):
     plt.plot(t[:n], y_tr, marker='o', color='blue', label='Training Set')
     plt.plot(t[n:], y_ts, marker='s', color='green', label='Test Set')
     plt.plot(t[n:], yt_pred[n:], marker='^', color='red', label='Step Forecast')
-    # plt.plot([t[-1] + 1, t[-1] + 2, t[-1] + 3], yt_pred, marker='o', color='green', label='Forecast')
     plt.title(method_n)
     plt.xlabel('Time')
     plt.ylabel('Magnitude')
@@ -215,7 +214,7 @@ def cal_q_value(error, lags, n, s_o=0):
     q_value = len(fd) * (acf)
     return q_value
 
-def naive(yt, n,h):
+def naive(yt, n):
     yt_pred_n = []
     for i in range(len(yt)):
         if i == 0:
@@ -223,13 +222,12 @@ def naive(yt, n,h):
         elif(i<n):
             yt_pred_n.append(yt[i - 1])
         else:
-            train = yt[:n]
-            yt_pred_n.append(train[-1])
+            yt_pred_n.append(yt[n-1])
     return yt_pred_n
 
-def drift_method(t,yt,n):
+def drift_method(yt, n):
     yt_pred_d=[]
-    for i in range(len(t)):
+    for i in range(len(yt)):
         if i < 2:
             yt_pred_d.append(np.nan)
         elif i < n:
@@ -251,7 +249,7 @@ def drift(y, n):
         y_pred[i] = y[n-1] + (i+1-n)*(y[n-1]-y[0])/(n-1)
     return y_pred
 
-def ses(t,yt,n,alpha):
+def ses(yt,n,alpha):
     l0=yt[0]
     yt_pred_s=[np.nan]
     yt_pred_s.append(alpha * l0 + (1 - alpha) * l0)
@@ -518,7 +516,7 @@ def compute_lm_step3(y, na, nb):
                     theta_hat = theta_new
                     var_e = sse_new / (N - n)
                     covariance_theta_hat = var_e * np.linalg.inv(A)
-                    print("Convergence Occured")
+                    print("Convergence Occured in ", iterations)
                     break
                 else:
                     theta = theta_new
@@ -570,6 +568,7 @@ def plot_sse(sse_list):
     plt.xlabel('Iterations')
     plt.ylabel('SSE')
     plt.title('SSE over the iterations')
+    plt.savefig("sse.png")
     plt.show()
 
 def estimate_arma(mean,var,na,nb,ar,ma, n):
@@ -657,51 +656,41 @@ def holt_winters_forecast(train,test):
     plt.show()
 
 
-def forecast_method(arr_train, arr_test, model, alpha=0.5, n=10, lags=20):
-    arr_train = np.array(arr_train)
-    arr_test = np.array(arr_test)
-
+def forecast_method(y, n, model, alpha=0.5, lags=20):
+    index_y = y.index
+    y.reset_index(inplace=True, drop=True)
     if model == 'Average':
-        y_pred = []
-        for i in range(len(arr_train) + len(arr_test)):
-            if i == 0:
-                y_pred.append(np.nan)
-            elif i <= n:
-                y_pred.append(sum(arr_train[:i]) / i)
-            else:
-                y_pred.append(sum(arr_train[i - n:i]) / n)
-
-        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
+        y_pred = average(y,n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(y, y_pred, n, 1)
 
     elif model == 'Naive':
-        y_pred = naive(arr_train, n, len(arr_test))
-        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
+        y_pred = naive(y, n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(y, y_pred, n, 1)
 
     elif model == 'Drift':
-        y_pred = drift(arr_train, n) + [np.nan] * len(arr_test)
-        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 2)
+        y_pred = drift(y, n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(y, y_pred, n, 2)
 
     elif model == 'SES':
-        y_pred = ses(arr_train, arr_train, n, alpha) + [np.nan] * len(arr_test)
-        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(arr_train, y_pred[:len(arr_train)], n, 1)
+        y_pred = ses(y, n, alpha)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(y, y_pred, n, 1)
 
     else:
         print(f"Invalid model choice: {model}")
         return None
-    Q = sm.stats.acorr_ljungbox(e[2:len(arr_train)], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    Q = sm.stats.acorr_ljungbox(e[2:n], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
     print(f"Q-Value for training set ({model} Method) : ", np.round(Q, 2))
     plt.figure()
-    plt.plot(arr_train, label='training set', markerfacecolor='blue')
-    plt.plot([None for i in arr_train] + [x for x in arr_test], label='test set')
-    plt.plot([None for i in arr_train] + y_pred, label='h-step forecast')
+    y.index = index_y
+    plt.plot(y[:n].index, y[:n], label='training set', markerfacecolor='blue')
+    plt.plot(y[n:].index, y[n:], label='test set')
+    plt.plot(y[n:].index, y_pred[n:], label='h-step forecast')
     plt.legend()
     plt.title(f'Temperature - {model.capitalize()} Method & Forecast')
     plt.ylabel('Values')
     plt.xlabel('Number of Observations')
     plt.grid()
     plt.show()
-
-
     return y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean
 
 
@@ -755,33 +744,11 @@ def print_coefficients_and_intervals(model, na, nb):
     for i in range(1, nb + 1):
         print(f"The confidence interval for b{i} is: {model.conf_int()[i + na][0]} and {model.conf_int()[i + na][1]}")
 
-def plot_train_and_fitted_data(y_train, model_hat, na, d, nb):
-    plt.figure()
-    plt.plot(y_train, 'r', label='Train data')
-    plt.plot(model_hat, 'b', label='Fitted data')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.legend()
-    plt.title(f'Stats ARIMA ({na},{d},{nb}) model and predictions')
-    plt.grid()
-    plt.show()
-
-
-def plot_test_and_forecast(y_test, test_forecast, na, d, nb):
-    plt.figure()
-    plt.plot(y_test, 'r', label='Test data')
-    plt.plot(test_forecast, 'b', label='Forecasted data')
-    plt.xlabel('Samples')
-    plt.ylabel('Magnitude')
-    plt.legend()
-    plt.title(f'Stats ARIMA ({na},{d},{nb}) model and Forecast')
-    plt.grid()
-    plt.show()
 
 
 
 
-def ARIMA_method(na, nb, d, lags, y_train, y_test):
+def ARIMA_method(na,d, nb, lags, y_train, y_test):
     model = ARIMA(y_train, order=(na, 0, 0), seasonal_order=(0,0,nb,24)).fit()
     print(model.summary())
     model_hat = model.predict()
@@ -789,15 +756,23 @@ def ARIMA_method(na, nb, d, lags, y_train, y_test):
     error_method(pd.concat([y_train, y_test]), pd.concat([model_hat, test_forecast]), len(y_train), 0)
     ry = sm.tsa.stattools.acf(model.resid, nlags=lags)
     Auto_corr_plot(ry,50,"Arima")
-    Q = sm.stats.acorr_ljungbox(model.resid, lags=[20], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    Q = sm.stats.acorr_ljungbox(model.resid, lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
     print("Q-Value for ARIMA residuals: ", Q)
     check_residuals(Q, lags, na, nb)
     print_coefficients_and_intervals(model, na, nb)
-    plot_train_and_fitted_data(y_train, model_hat, na, d, nb)
-    plot_test_and_forecast(y_test, test_forecast, na, d, nb)
-    lbvalue, pvalue = sm.stats.acorr_ljungbox(model.resid, lags=[lags])
-    print(f'lbvalue={lbvalue}')
-    print(f'pvalue={pvalue}')
+    result = sm.stats.acorr_ljungbox(model.resid,model_df = 1,boxpierce=True, lags=[20])
+    print(result)
+    plt.plot(list(y_train.index.values + 1), y_train, label='Training dataset')
+    plt.plot(list(y_test.index.values + 1), y_test, label='Testing dataset', color='orange')
+    plt.plot(list(y_test.index.values + 1), test_forecast, label='Forecast',  color='green')
+    plt.xlabel('Samples')
+    plt.ylabel('Magnitude')
+    plt.title('SARIMA')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('sarima.png')
+    plt.show()
+
 
 
 def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
@@ -842,8 +817,6 @@ def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
 
 def lm(y, na, nb):
     theta, sse, var_error, cov_theta_hat, sse_list = compute_lm_step3(y, na, nb)
-    print(theta)
-
     theta2 = np.array(theta).reshape(-1)
     for i in range(na + nb):
         if i < na:
@@ -861,3 +834,4 @@ def lm(y, na, nb):
     print("Estimated variance of error:", var_error_rounded)
     find_roots(theta, na)
     plot_sse(sse_list)
+
