@@ -8,11 +8,12 @@ import statsmodels.api as sm
 import Tool
 import numpy as np
 import seaborn as sns
-from numpy import linalg as LA
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 
-# Loading DATA
+
+#==============================================
+# Loading DATA ####
+#===============================================
 
 pd.set_option('display.max_columns', None)
 url = 'https://raw.githubusercontent.com/sshikha78/Solar-Radiation-Prediction/main/SolarPrediction.csv'
@@ -27,10 +28,17 @@ df['TimeSunRise'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunRise']).astype(
 df['TimeSunSet'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunSet']).astype(np.int64)
 df_hourly = df.resample('H', on='Datetime').mean()
 
+
+#==============================================
 # Plotting dependent variable ####
+#===============================================
+
 Tool.plot_graph(list(df_hourly.index.values), df_hourly['Radiation'], 'Time', 'Radiation', 'Radiation over Time')
 
+
+#==============================================
 #   Check NA value    #####
+#===============================================
 
 print(f'NA value: \n{df_hourly.isna().sum()}')
 df_hourly.reset_index(inplace=True)
@@ -38,18 +46,27 @@ print(df_hourly)
 print(df_hourly[df_hourly.isna().any(axis=1)])
 col_list = df_hourly.columns[df_hourly.isna().any()].tolist()
 index_list = df_hourly[df_hourly.isna().any(axis=1)].index.tolist()
+
 # Filling NA with forecasted value of drift method  #
 for col in col_list:
     for index in index_list:
         y_pred = Tool.drift(df_hourly[col], index)
         df_hourly[col][index] = y_pred[index]
 
-# Checking if NA remain     ####
+
+#==============================================
+# Checking if NA remain AFTER DRIFT      ####
+#===============================================
+
 print(f'NA value: \n{df_hourly.isna().sum()}')
 df_hourly.set_index('Datetime', inplace=True)
 print(df_hourly[170:190])
 
+
+#==============================================
 # Plotting dependent variable vs time   ####
+#===============================================
+
 Tool.plot_graph(list(df_hourly.index.values), df_hourly['Radiation'], 'Time', 'Radiation', 'Radiation over Time')
 
 df_hourly['TimeSunRise'] = pd.to_datetime(df_hourly['TimeSunRise'], format='%Y-%m-%d %H:%M:%S')
@@ -60,10 +77,16 @@ print("NaN values  interpolation:", df_hourly.isna().sum())
 print(df_hourly.describe())
 print(df_hourly.shape)
 
+#==============================================
 #   ACF/PACF Plot    ####
+#===============================================
+
 Tool.ACF_PACF_Plot(df_hourly['Radiation'], lags=24, method_name='Solar Radiation')
 
+
+#==============================================
 #  Correlation Matrix   ####
+#===============================================
 
 plt.figure(figsize=(16, 8))
 corr_matrix = df_hourly.corr(method='pearson')
@@ -72,7 +95,9 @@ plt.title('Correlation Matrix')
 plt.tight_layout()
 plt.show()
 
+#==============================================
 #  Stationarity check   ####
+#===============================================
 
 # Perform Rolling mean and variance,ADF and KPSS tests on the raw data
 Tool.Graph_rolling_mean_var(df_hourly, col='Radiation')
@@ -99,11 +124,7 @@ Tool.Graph_rolling_mean_var(df_hourly[s:], 'seasonal_d_o_1')
 # Doing a non-seasonal differencing after the seasonal differrencing
 # Transforming data to make it stationary
 df_hourly['diff_order_1'] = Tool.non_seasonal_differencing(df_hourly['seasonal_d_o_1'], s)
-
-# Plotting dependent variable vs time
 Tool.plot_graph(list(df_hourly.index.values), df_hourly['diff_order_1'], 'Time', 'diff_order_1', 'Radiation over Time')
-
-# Stationarity Tests on transformed data
 Tool.ACF_PACF_Plot(df_hourly['diff_order_1'][s+1:], lags=60,method_name='Differncing Order-1')
 print('---ADF Test for  Radiation diff---')
 Tool.adf_Cal_pass(df_hourly['diff_order_1'][s+1:], "diff_order_1 Radiation")
@@ -111,12 +132,17 @@ print('---KPSS Test for  Radiation diff---')
 Tool.kpss_test(df_hourly['diff_order_1'][s+1:])
 Tool.Graph_rolling_mean_var(df_hourly[s+1:], 'diff_order_1')
 
+#==============================================
 # STL Decomposition
+#===============================================
 
 Tool.stl_decomposition(df_hourly['Radiation'], 'Radiation')
 Tool.stl_decomposition(df_hourly['diff_order_1'][s+1:], 'diff_order_1')
 
+
+#==============================================
 # #	FEATURE SELECTION	####
+#===============================================
 
 df1 = df_hourly.copy()
 print(df1.info())
@@ -155,12 +181,17 @@ X_train_2.drop(['WindDirection(Degrees)','Pressure'], axis=1, inplace=True)
 model_Final = sm.OLS(list(y_train1), X_train_2).fit()
 print(model_Final.summary())
 
+#==============================================
 #   DATA SPLITTING 	    ####
+#===============================================
 
 df_train, df_test = train_test_split(df_hourly, test_size=0.2, shuffle=False)
 
+
+#==============================================
 # # Base Model	    ####
-#
+#===============================================
+
 print('-----AVERAGE METHOD----------')
 Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1'].values,'Average')
 print('-----NAIVE METHOD----------')
@@ -172,8 +203,10 @@ Tool.forecast_method(df_train[s+1:]['diff_order_1'].values,df_test['diff_order_1
 print('-----HOLT WINTER METHOD----------')
 Tool.holt_winters_forecast(df_train[s+1:]['diff_order_1'].values, df_test['diff_order_1'].values)
 
-#
+
+#==============================================
 #  Multiple Linear regression Model  #####
+#===============================================
 
 X_train = sm.add_constant(X_train, prepend=True)
 X_test = sm.add_constant(X_test, prepend=True)
@@ -206,12 +239,29 @@ print('\nF-Test')
 print(model_full_final.f_pvalue)
 
 
-#  GPAC  ####
+#==============================================
+# GPAC ####
+#===============================================
 
 lags = 100
 ry = sm.tsa.stattools.acf(y_train1, nlags=lags)
 Tool.calc_GPAC(ry, J=50, K=50, savepath=f'gpac.png')
 
+
+#==============================================
 # ARMA, ARIMA, SARIMA ####
+#===============================================
+
 
 Tool.ARIMA_method(0,0, 1, 24, y_train1, y_test1)
+
+
+#==============================================
+# Levenberg Marquardt algorithm  ####
+#===============================================
+
+na = 24
+nb=1
+
+Tool.lm(y_train1,na,nb)
+

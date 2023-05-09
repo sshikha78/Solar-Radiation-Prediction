@@ -795,6 +795,9 @@ def ARIMA_method(na, nb, d, lags, y_train, y_test):
     print_coefficients_and_intervals(model, na, nb)
     plot_train_and_fitted_data(y_train, model_hat, na, d, nb)
     plot_test_and_forecast(y_test, test_forecast, na, d, nb)
+    lbvalue, pvalue = sm.stats.acorr_ljungbox(model.resid, lags=[lags])
+    print(f'lbvalue={lbvalue}')
+    print(f'pvalue={pvalue}')
 
 
 def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
@@ -835,3 +838,26 @@ def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
             plt.savefig(savepath)
         plt.show()
     return gpac
+
+
+def lm(y, na, nb):
+    theta, sse, var_error, cov_theta_hat, sse_list = compute_lm_step3(y, na, nb)
+    print(theta)
+
+    theta2 = np.array(theta).reshape(-1)
+    for i in range(na + nb):
+        if i < na:
+            ar_coef = "{:.3f}".format(theta2[i])
+            print(f"The AR coefficient {i + 1} is: {ar_coef}")
+        else:
+            ma_coef = "{:.3f}".format(theta2[i])
+            print(f"The MA coefficient {i - na + 1} is: {ma_coef}")
+
+    lm_confidence_interval(theta, cov_theta_hat, na, nb)
+    cov_theta_hat_rounded = np.round(cov_theta_hat, decimals=3)
+    print("Estimated Covariance Matrix of estimated parameters:")
+    print(cov_theta_hat_rounded)
+    var_error_rounded = round(var_error, 3)
+    print("Estimated variance of error:", var_error_rounded)
+    find_roots(theta, na)
+    plot_sse(sse_list)
