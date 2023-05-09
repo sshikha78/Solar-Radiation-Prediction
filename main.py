@@ -9,7 +9,8 @@ import Tool
 import numpy as np
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
-
+import warnings
+warnings.filterwarnings("ignore")
 
 #==============================================
 # Loading DATA ####
@@ -22,7 +23,7 @@ df = pd.read_csv(url)
 df['Datetime'] = pd.to_datetime(df['Data'] + ' ' + df['Time'])
 df.sort_values(by='Datetime', inplace=True)
 df = df.drop(['UNIXTime'], axis=1)
-print(df)
+print(df.head().to_string())
 print(df.info())
 df['TimeSunRise'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunRise']).astype(np.int64)
 df['TimeSunSet'] = pd.to_datetime(df['Data'] + ' ' + df['TimeSunSet']).astype(np.int64)
@@ -42,7 +43,7 @@ Tool.plot_graph(list(df_hourly.index.values), df_hourly['Radiation'], 'Time', 'R
 
 print(f'NA value: \n{df_hourly.isna().sum()}')
 df_hourly.reset_index(inplace=True)
-print(df_hourly)
+print(df_hourly.head().to_string())
 print(df_hourly[df_hourly.isna().any(axis=1)])
 col_list = df_hourly.columns[df_hourly.isna().any()].tolist()
 index_list = df_hourly[df_hourly.isna().any(axis=1)].index.tolist()
@@ -60,7 +61,6 @@ for col in col_list:
 
 print(f'NA value: \n{df_hourly.isna().sum()}')
 df_hourly.set_index('Datetime', inplace=True)
-print(df_hourly[170:190])
 
 
 #==============================================
@@ -74,7 +74,7 @@ df_hourly['TimeSunSet'] = pd.to_datetime(df_hourly['TimeSunSet'], format='%Y-%m-
 date = pd.date_range(start = '2016-09-01', periods = len(df_hourly), freq='H')
 df_hourly.index = date
 print("NaN values  interpolation:", df_hourly.isna().sum())
-print(df_hourly.describe())
+print(df_hourly.describe().to_string())
 print(df_hourly.shape)
 
 #==============================================
@@ -198,7 +198,7 @@ print(model_Final.summary())
 #==============================================
 #   DATA SPLITTING 	    ####
 #===============================================
-
+index_df_hourly = df_hourly.index
 df_train, df_test = train_test_split(df_hourly, test_size=0.2, shuffle=False)
 
 
@@ -215,7 +215,7 @@ Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'Drift')
 print('-----SES METHOD----------')
 Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'SES')
 print('-----HOLT WINTER METHOD----------')
-Tool.holt_winters_forecast(df_hourly[s+1:len(df_train)]['diff_order_1'], df_hourly[len(df_train):]['diff_order_1'])
+Tool.forecast_method(df_hourly[s+1:]['diff_order_1'], len(df_train), 'Holt-Winters')
 
 
 #==============================================
@@ -231,26 +231,35 @@ y_pred = model_full_final.predict(X_train)
 X_test = X_test[X_train.columns.to_list()]
 y_forecast = model_full_final.predict(X_test)
 
-plt.plot(list(X_train.index.values + 1), y_train1, label="Train")
-plt.plot(list(X_test.index.values + len(X_train) + 1), y_test1, label="Test")
-plt.plot(list(X_test.index.values + len(X_train) + 1), y_forecast, label="Forecast")
-plt.xlabel("Index")
+
+df_ols = pd.DataFrame(list(zip(pd.concat([y_train1, y_test1], axis=0), pd.concat([y_pred, y_forecast], axis=0))), columns=['y', 'y_pred'], index = df_hourly[s+1:].index)
+plt.figure(figsize=(16,8))
+plt.plot(df_ols[:len(y_train1)].index, y_train1, label="Train")
+plt.plot(df_ols[len(y_train1):].index, y_test1, label="Test")
+plt.plot(df_ols[len(y_train1):].index, y_forecast, label="Forecast")
+plt.xlabel("Time")
 plt.ylabel("Radiation")
 plt.title("Forcast using OLS")
 plt.legend()
+plt.grid()
 plt.tight_layout()
 plt.show()
 
 df_final = pd.DataFrame(list(zip(pd.concat([y_train1, y_test1], axis=0), pd.concat([y_pred, y_forecast], axis=0))), columns=['y', 'y_pred'])
-e, e_sq, mse_tr, var_pred, MSE_test, var_fcst, mean_res_train = Tool.error_method(df_final['y'].to_list(), df_final['y_pred'].to_list(), len(y_train1), 0)
+e, e_sq, mse_tr, var_pred, mse_ts, var_fcst, res_mean = Tool.error_method(df_final['y'].to_list(), df_final['y_pred'].to_list(), len(y_train1), 0)
 Q = sm.stats.acorr_ljungbox(model_full_final.resid, lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
 print(f"Q-Value for training set Method) : ", np.round(Q, 2))
+var_f_vs_r = round((var_fcst) / (var_pred), 2)
+print(f'var(forecast errors)/var(Residual errors): {var_f_vs_r:.2f}')
 Tool.Auto_corr_plot(model_full_final.resid, lags=20, method_name='ACF Plot for errors Prediction Errors')
+
+ols_data = ["Multi-Linear Regression", mse_tr, mse_ts, var_fcst, res_mean, np.round(Q, 2),var_f_vs_r]
 
 print('T-Test')
 print(model_full_final.pvalues)
 print('\nF-Test')
 print(model_full_final.f_pvalue)
+
 
 
 #==============================================
@@ -266,7 +275,7 @@ Tool.calc_GPAC(ry, J=50, K=50, savepath=f'gpac.png')
 # SARIMA    ####
 #===============================================
 
-Tool.ARIMA_method(0, 0, 1, 24, y_train1, y_test1)
+sarimax = Tool.ARIMA_method(0, 0, 1, 24, y_train1, y_test1)
 Tool.ARIMA_method(1, 0, 0, 24, y_train1, y_test1)
 
 #==============================================
@@ -285,5 +294,22 @@ Tool.lm(y_train1,na,nb)
 
 
 #==============================================
-#  LSTM model ####
+#  Table ####
 #===============================================
+
+from tabulate import tabulate
+def forecast_and_table(y, n, models, alpha=0.5, lags=20):
+    results = []
+    for model in models:
+        y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean, var_f_vs_r = Tool.Base_model(y, n, model, alpha, lags)
+        Q = sm.stats.acorr_ljungbox(e[2:n], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
+        results.append([model, mse_tr, mse_ts, var_fcst, res_mean, np.round(Q, 2), var_f_vs_r])
+    return results
+models = ['Average', 'Naive', 'Drift', 'SES','Holt-Winters']
+results = forecast_and_table(df_hourly[s+1:]['diff_order_1'], len(df_train), models)
+results.append(ols_data)
+results.append(sarimax)
+headers = ["Method", "MSE Train", "MSE Test", "Var Forecast", "Mean Residual Train", "Q Value","Ratio Vres_er vs V_for_err "]
+print(tabulate(results, headers=headers))
+
+

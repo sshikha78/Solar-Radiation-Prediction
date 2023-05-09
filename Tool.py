@@ -188,7 +188,7 @@ def error_method(yt, pred, n,s_o):
     print(f'MSE of residual error for  is {np.round(mse_tr, 2)}')
     print(f'Variance of residual error   is {np.round(var_pred, 2)}')
     print(f'Variance of forecast error  is {np.round(var_fcst, 2)}')
-    print(f'Ratio of variance of residual errors versus variance of forecast errors : {np.round(var_pred / var_fcst, 2)}')
+    print(f'Ratio of variance of residual errors versus variance of forecast errors : {np.round(var_fcst / var_pred, 2)}')
 
     return error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean
 
@@ -589,13 +589,13 @@ def stl_decomposition(df, col, period=365, plot=True):
     res = stl.fit()
     T, S, R = res.trend, res.seasonal, res.resid
     if plot:
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(16, 10))
         fig = res.plot()
-        plt.xlabel('Year')
+        plt.xlabel('Time')
         plt.grid()
         plt.show()
 
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(16, 10))
         plt.plot(df.index, T.values, label='trend')
         plt.plot(df.index, S.values, label='Seasonal')
         plt.plot(df.index, R.values, label='residuals')
@@ -606,22 +606,22 @@ def stl_decomposition(df, col, period=365, plot=True):
         plt.show()
 
         adj_seasonal = (df.values - res.seasonal)
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(16, 10))
         plt.plot(df.values, label='Original Data')
         plt.plot(adj_seasonal.values, label='Adjusted Seasonally')
         plt.legend()
         plt.title('Original Data vs Seasonally Adjusted Data')
-        plt.xlabel("Year")
+        plt.xlabel("Time")
         plt.ylabel(col)
         plt.grid()
         plt.show()
 
         detrended = (df.values - res.trend)
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(16, 10))
         plt.plot(df, label='Original Data')
         plt.plot(detrended, label='Detrended Data')
         plt.title(f'Detrended Data vs Original Data of {col}')
-        plt.xlabel('Frequency')
+        plt.xlabel('Time')
         plt.ylabel('Value')
         plt.legend()
         plt.tight_layout()
@@ -640,20 +640,7 @@ def stl_decomposition(df, col, period=365, plot=True):
 
 
 import statsmodels.tsa.holtwinters as ets
-def holt_winters_forecast(train,test):
-    holtt1 = ets.ExponentialSmoothing(train,).fit()
-    pred_train_holts = holtt1.predict(start=0, end=(len(train) - 1))
-    pred_test_holts = holtt1.forecast(steps=len(test))
-    plt.figure()
-    plt.plot(train, label='training set', markerfacecolor='blue')
-    plt.plot([None for i in train] + [x for x in test], label='test set')
-    plt.plot([None for i in train] + [x for x in pred_test_holts], label='h-step forecast')
-    plt.legend()
-    plt.title('Temperature - Holt-Winter Seasonal Method & Forecast')
-    plt.ylabel('Values')
-    plt.xlabel('Number of Observations')
-    plt.grid()
-    plt.show()
+
 
 
 def forecast_method(y, n, model, alpha=0.5, lags=20):
@@ -674,13 +661,23 @@ def forecast_method(y, n, model, alpha=0.5, lags=20):
     elif model == 'SES':
         y_pred = ses(y, n, alpha)
         e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean = error_method(y, y_pred, n, 1)
-
+    elif model == 'Holt-Winters':
+        model_h = ets.ExponentialSmoothing(y[:n], seasonal='add', seasonal_periods=24).fit()
+        y_pred = model_h.predict(start=0, end=(n - 1))
+        y_pred = pd.concat([y_pred, model_h.forecast(steps=len(y) - n)])
+        e = y - y_pred
+        e2 = e ** 2
+        mse_tr = np.nanmean(e2[:n])
+        var_pred = np.nanvar(e[:n])
+        mse_ts = np.nanmean(e2[n:])
+        var_fcst = np.nanvar(e[n:])
+        res_mean = np.nanmean(e[:n])
     else:
         print(f"Invalid model choice: {model}")
         return None
     Q = sm.stats.acorr_ljungbox(e[2:n], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
     print(f"Q-Value for training set ({model} Method) : ", np.round(Q, 2))
-    plt.figure()
+    plt.figure(figsize=(16, 8))
     y.index = index_y
     plt.plot(y[:n].index, y[:n], label='training set', markerfacecolor='blue')
     plt.plot(y[n:].index, y[n:], label='test set')
@@ -688,10 +685,66 @@ def forecast_method(y, n, model, alpha=0.5, lags=20):
     plt.legend()
     plt.title(f'Temperature - {model.capitalize()} Method & Forecast')
     plt.ylabel('Values')
-    plt.xlabel('Number of Observations')
+    plt.xlabel('Time')
     plt.grid()
     plt.show()
     return y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean
+
+def error1(yt, pred, n,s_o):
+    error=[]
+    e_squared=[]
+    for i in range(0, len(yt)):
+        #if i == 0:
+        if pred[i] == np.nan:
+            error.append(np.nan)
+            e_squared.append(np.nan)
+        else:
+            error.append(yt[i] - pred[i])
+            e_squared.append(error[i] ** 2)
+
+    mse_tr = np.nanmean(e_squared[s_o:n])
+    mse_ts = np.nanmean(e_squared[n:])
+    res_mean = np.nanmean(error[s_o:n])
+    var_pred = np.nanvar(error[s_o:n])
+    var_fcst = np.nanvar(error[n:])
+
+    var_f_vs_r = round(var_fcst / var_pred, 2)
+    print(f'var(forecast errors)/var(Residual errors): {var_f_vs_r:.2f}')
+    return error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean,var_f_vs_r
+def Base_model(y, n, model, alpha=0.5, lags=20):
+    index_y = y.index
+    y.reset_index(inplace=True, drop=True)
+    if model == 'Average':
+        y_pred = average(y,n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean,var_f_vs_r = error1(y, y_pred, n, 1)
+
+    elif model == 'Naive':
+        y_pred = naive(y, n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean,var_f_vs_r = error1(y, y_pred, n, 1)
+
+    elif model == 'Drift':
+        y_pred = drift(y, n)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean,var_f_vs_r = error1(y, y_pred, n, 2)
+
+    elif model == 'SES':
+        y_pred = ses(y, n, alpha)
+        e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean,var_f_vs_r = error1(y, y_pred, n, 1)
+    elif model == 'Holt-Winters':
+        model_h = ets.ExponentialSmoothing(y[:n], seasonal='add', seasonal_periods=24).fit()
+        y_pred = model_h.predict(start=0, end=(n - 1))
+        y_pred = pd.concat([y_pred, model_h.forecast(steps=len(y) - n)])
+        e = y - y_pred
+        e2 = e ** 2
+        mse_tr = np.nanmean(e2[:n])
+        var_pred = np.nanvar(e[:n])
+        mse_ts = np.nanmean(e2[n:])
+        var_fcst = np.nanvar(e[n:])
+        res_mean = np.nanmean(e[:n])
+        var_f_vs_r = round(var_fcst / var_pred, 2)
+    else:
+        print(f"Invalid model choice: {model}")
+
+    return y_pred, e, e2, mse_tr, mse_ts, var_pred, var_fcst, res_mean,var_f_vs_r
 
 
 def Gpac(ry, j_max=7, k_max=7):
@@ -753,27 +806,30 @@ def ARIMA_method(na,d, nb, lags, y_train, y_test):
     print(model.summary())
     model_hat = model.predict()
     test_forecast = model.forecast(len(y_test))
-    error_method(pd.concat([y_train, y_test]), pd.concat([model_hat, test_forecast]), len(y_train), 0)
+    error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean= error_method(pd.concat([y_train, y_test]), pd.concat([model_hat, test_forecast]), len(y_train), 0)
     ry = sm.tsa.stattools.acf(model.resid, nlags=lags)
     Auto_corr_plot(ry,50,"Arima")
+    var_f_vs_r = round(var_fcst / var_pred, 2)
+    print(f'var(forecast errors)/var(Residual errors): {var_f_vs_r:.2f}')
     Q = sm.stats.acorr_ljungbox(model.resid, lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
     print("Q-Value for ARIMA residuals: ", Q)
     check_residuals(Q, lags, na, nb)
     print_coefficients_and_intervals(model, na, nb)
     result = sm.stats.acorr_ljungbox(model.resid,model_df = 1,boxpierce=True, lags=[20])
     print(result)
+    plt.figure(figsize=(16,10))
     plt.plot(list(y_train.index.values + 1), y_train, label='Training dataset')
     plt.plot(list(y_test.index.values + 1), y_test, label='Testing dataset', color='orange')
     plt.plot(list(y_test.index.values + 1), test_forecast, label='Forecast',  color='green')
-    plt.xlabel('Samples')
+    plt.xlabel('Time')
     plt.ylabel('Magnitude')
     plt.title('SARIMA')
     plt.legend()
     plt.tight_layout()
     plt.savefig('sarima.png')
     plt.show()
-
-
+    sarimax = ["SARIMAX",mse_tr, mse_ts, var_fcst, res_mean, np.round(Q, 2),var_f_vs_r]
+    return sarimax
 
 def calc_GPAC(acfs, J=10, K=10, plot=True, title=None, savepath=None):
     acfs = np.concatenate((acfs[::-1], acfs[1:]))
@@ -834,4 +890,5 @@ def lm(y, na, nb):
     print("Estimated variance of error:", var_error_rounded)
     find_roots(theta, na)
     plot_sse(sse_list)
+
 
