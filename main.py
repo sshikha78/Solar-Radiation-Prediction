@@ -268,8 +268,8 @@ print(model_full_final.f_pvalue)
 
 lags = 100
 ry = sm.tsa.stattools.acf(y_train1, nlags=lags)
-Tool.calc_GPAC(ry, J=50, K=50, savepath=f'gpac.png')
-
+# Tool.calc_GPAC(ry, J=50, K=50, savepath=f'gpac.png')
+Tool.Gpac(ry,j_max=26,k_max=26)
 
 #==============================================
 # SARIMA    ####
@@ -285,12 +285,6 @@ Tool.ARIMA_method(1, 0, 0, 24, y_train1, y_test1)
 na = 0
 nb = 1
 Tool.lm(y_train1,na,nb)
-
-#==============================================
-#  Diagnostic Analysis ####
-#===============================================
-
-
 
 
 #==============================================

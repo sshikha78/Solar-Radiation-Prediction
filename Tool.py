@@ -672,6 +672,12 @@ def forecast_method(y, n, model, alpha=0.5, lags=20):
         mse_ts = np.nanmean(e2[n:])
         var_fcst = np.nanvar(e[n:])
         res_mean = np.nanmean(e[:n])
+        print(f'Mean of residual error is {np.round(res_mean, 2)}')
+        print(f'MSE of residual error for  is {np.round(mse_tr, 2)}')
+        print(f'Variance of residual error   is {np.round(var_pred, 2)}')
+        print(f'Variance of forecast error  is {np.round(var_fcst, 2)}')
+        print(f'Ratio of variance of residual errors versus variance of forecast errors : {np.round(var_fcst / var_pred, 2)}')
+
     else:
         print(f"Invalid model choice: {model}")
         return None
@@ -768,7 +774,7 @@ def Gpac(ry, j_max=7, k_max=7):
             gpac_table[j][k - 1] = phi_j_k
     plt.figure(figsize=(36, 28))
     x_axis_labels = list(range(1, k_max))
-    sns.heatmap(gpac_table, annot=True, xticklabels=x_axis_labels, fmt=f'.{3}f', vmin=-0.1, vmax=0.1)#, cmap='BrBG'
+    sns.heatmap(gpac_table, annot=True, xticklabels=x_axis_labels, fmt=f'.{3}f', vmin=-0.1, vmax=0.1)
     plt.title(f'GPAC Table', fontsize=18)
     plt.savefig("gpac.png")
     plt.show()
