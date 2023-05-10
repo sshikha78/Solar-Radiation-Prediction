@@ -303,6 +303,8 @@ models = ['Average', 'Naive', 'Drift', 'SES','Holt-Winters']
 results = forecast_and_table(df_hourly[s+1:]['diff_order_1'], len(df_train), models)
 results.append(ols_data)
 results.append(sarimax)
+lstm_error = ['LSTM', 13081.633729, 9423.703469, 9131.291846,  -16.878022, 736.416059, 0.71]
+results.append(lstm_error)
 headers = ["Method", "MSE Train", "MSE Test", "Var Forecast", "Mean Residual Train", "Q Value","Ratio Vres_er vs V_for_err "]
 print(tabulate(results, headers=headers))
 
