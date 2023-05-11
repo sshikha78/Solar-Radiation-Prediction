@@ -69,7 +69,6 @@ external_stylesheets = [
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.title = "Solar Radiation Prediction "
 
-# define the layout for each tab
 tab1_layout = html.Div([
     html.H1("Data Distribution"),
     html.Div([
@@ -342,59 +341,6 @@ def update_rolling_plots(n_clicks, variable):
 
     return fig
 
-# Add a new tab for ACF-PACF plots
-
-# tab2_layout = html.Div([
-#     html.H1("ACF & PACF"),
-#     html.Div([
-#         dcc.Dropdown(
-#             id='target-selector2',
-#             options=[
-#                 {'label': 'Radiation', 'value': 'Radiation'},
-#                 {'label': 'Seasonal Difference (s=24)', 'value': 's_diff'},
-#                 {'label': 'Non-Seasonal Difference (order=1)', 'value': 'ns_diff'}
-#             ],
-#             value='Radiation'
-#         ),
-#         dcc.Slider(
-#             id='lag-slider',
-#             min=0,
-#             max=50,
-#             value=20,
-#             marks={str(i): str(i) for i in range(0, 51, 5)},
-#             step=None
-#         ),
-#         html.Button('Submit', id='submit-button2', n_clicks=0)
-#     ], style={'width': '50%', 'margin': 'auto', 'padding': '20px'}),
-#     dcc.Graph(id="acf-pacf-graph", style={'height': '500px'})
-# ])
-#
-#
-#
-#
-# # Callback function to update ACF-PACF graph
-# @app.callback(
-#     Output("acf-pacf-graph", "figure"),
-#     Input('submit-button2', 'n_clicks'),
-#     Input("lag-slider", "value"),
-#     State('target-selector2', 'value')
-# )
-# def update_tab2(n_clicks, lags, variable):
-#     if variable == 's_diff':
-#         s = 24
-#         filtered_data = Tool.seasonal_differencing(df['Radiation'], seasons=s)
-#         filtered_data = filtered_data[s:]
-#     elif variable == 'ns_diff':
-#         s = 24
-#         filtered_data = Tool.seasonal_differencing(df['Radiation'], seasons=s)
-#         filtered_data = Tool.non_seasonal_differencing(filtered_data, 24)
-#         filtered_data = filtered_data[s+1:]
-#     else:
-#         filtered_data = df['Radiation']
-#     fig = Tool.ACF_PACF_Plot(filtered_data, lags=int(lags), method_name=f"{variable} - {lags} Lags")
-#     return fig
-#
-
 
 app.layout = html.Div(
     style={
@@ -417,16 +363,13 @@ app.layout = html.Div(
                 style={'width': '80%', 'margin': 'auto', 'text-align': 'center'}
             ),
             dcc.Tab(label='Data Distribution', value='tab1', children=[tab1_layout]),
-            # dcc.Tab(label='ACF-PACF', value='tab2', children=[tab2_layout]),
             dcc.Tab(label='Correlation Matrix', value='tab3', children=[tab3_layout]),
             dcc.Tab(label='STL Decomposition', value='tab4', children=[tab4_layout]),
             dcc.Tab(label='Rolling Mean & Variance', value='tab5', children=[tab5_layout]),
-            # dcc.Tab(label='Polynomial Function', value='tab4', children=[tab4_layout]),
-            # dcc.Tab(label='Sinusoidal Function', value='tab5', children=[tab5_layout]),
-            # dcc.Tab(label='Neural Network', value='tab6', children=[tab6_layout]),
         ]),
     ]
 )
 
 if __name__ == '__main__':
     app.run_server(debug=False)
+

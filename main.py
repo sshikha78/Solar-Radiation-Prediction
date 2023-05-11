@@ -312,3 +312,4 @@ headers = ["Method", "MSE Train", "MSE Test", "Var Forecast", "Mean Residual Tra
 print(tabulate(results, headers=headers))
 
 
+

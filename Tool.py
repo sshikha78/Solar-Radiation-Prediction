@@ -717,6 +717,7 @@ def error1(yt, pred, n,s_o):
     var_f_vs_r = round(var_fcst / var_pred, 2)
     print(f'var(forecast errors)/var(Residual errors): {var_f_vs_r:.2f}')
     return error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean,var_f_vs_r
+
 def Base_model(y, n, model, alpha=0.5, lags=20):
     index_y = y.index
     y.reset_index(inplace=True, drop=True)
@@ -802,8 +803,6 @@ def print_coefficients_and_intervals(model, na, nb):
 
     for i in range(1, nb + 1):
         print(f"The confidence interval for b{i} is: {model.conf_int()[i + na][0]} and {model.conf_int()[i + na][1]}")
-
-
 
 
 
@@ -896,5 +895,6 @@ def lm(y, na, nb):
     print("Estimated variance of error:", var_error_rounded)
     find_roots(theta, na)
     plot_sse(sse_list)
+
 
 
