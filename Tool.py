@@ -782,9 +782,9 @@ def Gpac(ry, j_max=7, k_max=7):
 
 def check_residuals(Q, lags, na, nb):
     DOF = lags - na - nb
-    alfa = 0.01
+    alfa = 0.10
     chi_critical = chi2.ppf(1 - alfa, DOF)
-
+    print(chi_critical)
     if Q < chi_critical:
         print("As Q-value is less than chi-2 critical, Residual is white")
     else:
@@ -814,10 +814,10 @@ def ARIMA_method(na,d, nb, lags, y_train, y_test):
     test_forecast = model.forecast(len(y_test))
     error, e_squared, mse_tr, mse_ts,var_pred,var_fcst,res_mean= error_method(pd.concat([y_train, y_test]), pd.concat([model_hat, test_forecast]), len(y_train), 0)
     ry = sm.tsa.stattools.acf(model.resid, nlags=lags)
-    Auto_corr_plot(ry,50,"Arima")
+    Auto_corr_plot(ry,20,"Arima")
     var_f_vs_r = round(var_fcst / var_pred, 2)
     print(f'var(forecast errors)/var(Residual errors): {var_f_vs_r:.2f}')
-    Q = sm.stats.acorr_ljungbox(model.resid, lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
+    Q = sm.stats.acorr_ljungbox(model.resid[1:], lags=[50], boxpierce=True, return_df=True)['bp_stat'].values[0]
     print("Q-Value for ARIMA residuals: ", Q)
     check_residuals(Q, lags, na, nb)
     print_coefficients_and_intervals(model, na, nb)

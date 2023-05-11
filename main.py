@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
 url = 'https://raw.githubusercontent.com/sshikha78/Solar-Radiation-Prediction/main/SolarPrediction.csv'
 df = pd.read_csv(url)
-
+print(df.head().to_string())
 df['Datetime'] = pd.to_datetime(df['Data'] + ' ' + df['Time'])
 df.sort_values(by='Datetime', inplace=True)
 df = df.drop(['UNIXTime'], axis=1)
@@ -75,13 +75,14 @@ date = pd.date_range(start = '2016-09-01', periods = len(df_hourly), freq='H')
 df_hourly.index = date
 print("NaN values  interpolation:", df_hourly.isna().sum())
 print(df_hourly.describe().to_string())
+print(df_hourly.info())
 print(df_hourly.shape)
 
 #==============================================
 #   ACF/PACF Plot    ####
 #===============================================
 
-Tool.ACF_PACF_Plot(df_hourly['Radiation'], lags=24, method_name='Solar Radiation')
+Tool.ACF_PACF_Plot(df_hourly['Radiation'], lags=50, method_name='Solar Radiation')
 
 
 #==============================================
@@ -282,9 +283,11 @@ Tool.ARIMA_method(1, 0, 0, 24, y_train1, y_test1)
 # Levenberg Marquardt algorithm  ####
 #===============================================
 
-na = 0
-nb = 1
-Tool.lm(y_train1,na,nb)
+
+Tool.lm(y_train1,0,1)
+
+# Tool.lm(y_train1,1,0)
+
 
 
 #==============================================
